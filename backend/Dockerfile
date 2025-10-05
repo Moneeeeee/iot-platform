@@ -42,7 +42,7 @@ EXPOSE 8000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
-
+    CMD curl -f http://localhost:8000/health || exit 1
+    # CMD curl -f http://localhost:8000/api/health || exit 1
 # 启动应用 - 使用预编译的JavaScript
 CMD ["npm", "start"]

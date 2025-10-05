@@ -65,6 +65,13 @@ export class AlertService extends EventEmitter {
    */
   private async initializeEmailTransporter(): Promise<void> {
     try {
+      // 在开发环境中跳过邮件配置
+      if (process.env.NODE_ENV === 'development') {
+        logger.info('Development mode: Email notifications disabled');
+        this.emailTransporter = null;
+        return;
+      }
+
       const smtpConfig = {
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),

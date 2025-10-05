@@ -52,7 +52,7 @@ services:
       dockerfile: Dockerfile
     container_name: iot-backend
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - DATABASE_URL=postgresql://iot_user:iot_password@postgres:5432/iot_platform
       - REDIS_URL=redis://redis:6379
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
