@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     g++ \
     postgresql-client \
     openssl \
-    openssl-dev
+    openssl-dev \
+    curl
 
 # 复制package.json和package-lock.json
 COPY package*.json ./
