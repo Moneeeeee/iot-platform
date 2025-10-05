@@ -140,7 +140,7 @@ export class HealthService {
     
     try {
       // 创建一个新的MQTT客户端进行健康检查
-      const mqttUrl = process.env.MQTT_BROKER_URL || 'mqtt://mosquitto:1883';
+      const mqttUrl = process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883';
       
       return new Promise((resolve) => {
         const testClient = mqtt.connect(mqttUrl, {

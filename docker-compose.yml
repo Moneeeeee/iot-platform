@@ -31,19 +31,38 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # MQTT Broker
-  mosquitto:
-    image: eclipse-mosquitto:2
-    container_name: iot-mosquitto
+  # MQTT Broker - EMQX
+  emqx:
+    image: emqx/emqx:5.4.0
+    container_name: iot-emqx
+    environment:
+      - EMQX_NAME=iot-emqx
+      - EMQX_HOST=iot-emqx
+      - EMQX_DASHBOARD__DEFAULT_USERNAME=admin
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=public
+      - EMQX_LISTENERS__TCP__DEFAULT__BIND=0.0.0.0:1883
+      - EMQX_LISTENERS__WS__DEFAULT__BIND=0.0.0.0:8083
+      - EMQX_LISTENERS__WSS__DEFAULT__BIND=0.0.0.0:8084
+      - EMQX_LISTENERS__HTTP__DEFAULT__BIND=0.0.0.0:8081
+      - EMQX_LISTENERS__HTTPS__DEFAULT__BIND=0.0.0.0:8089
     volumes:
-      - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./docker/mosquitto/passwd:/mosquitto/config/passwd
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "1883:1883"    # MQTT TCP
+      - "8083:8083"    # MQTT WebSocket
+      - "8084:8084"    # MQTT WebSocket Secure
+      - "8081:8081"    # HTTP API
+      - "8089:8089"    # HTTPS API
+      - "18083:18083"  # Dashboard
     networks:
       - iot-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # 后端服务
   backend:
@@ -55,7 +74,7 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://iot_user:iot_password@postgres:5432/iot_platform
       - REDIS_URL=redis://redis:6379
-      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - MQTT_BROKER_URL=mqtt://emqx:1883
       - JWT_SECRET=iot-platform-super-secret-jwt-key-2024
       - JWT_EXPIRES_IN=7d
       - LOG_LEVEL=info
@@ -73,7 +92,7 @@ services:
     depends_on:
       - postgres
       - redis
-      - mosquitto
+      - emqx
     networks:
       - iot-network
     restart: unless-stopped
@@ -119,6 +138,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  emqx_data:
+  emqx_log:
 
 networks:
   iot-network:
