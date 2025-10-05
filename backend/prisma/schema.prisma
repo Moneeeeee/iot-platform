@@ -1,0 +1,281 @@
+// Prisma数据库模式文件
+// 定义IoT平台的数据模型
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 用户相关模型 ====================
+
+/// 用户表
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String     @map("password_hash")
+  role         UserRole   @default(VIEWER)
+  permissions  String[]   @default([])
+  language     Language   @default(ZH_CN)
+  isActive     Boolean    @default(true) @map("is_active")
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // 关联关系
+  devices      Device[]
+  alerts       Alert[]
+  logs         Log[]
+  sessions     UserSession[]
+  fileUploads  FileUpload[]
+
+  @@map("users")
+}
+
+/// 用户角色枚举
+enum UserRole {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+/// 语言枚举
+enum Language {
+  ZH_CN  @map("zh-CN")
+  ZH_TW  @map("zh-TW")
+  EN     @map("en")
+
+  @@map("language")
+}
+
+// ==================== 设备相关模型 ====================
+
+/// 设备表
+model Device {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  type        DeviceType
+  status      DeviceStatus @default(OFFLINE)
+  config      Json         @default("{}")
+  capabilities String[]    @default([])
+  lastSeenAt  DateTime?    @map("last_seen_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // 关联关系
+  userId      String       @map("user_id")
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data        DeviceData[]
+  alerts      Alert[]
+  logs        Log[]
+
+  @@map("devices")
+}
+
+/// 设备类型枚举
+enum DeviceType {
+  SMART_SENSOR
+  SMART_GATEWAY
+  SMART_CONTROLLER
+
+  @@map("device_type")
+}
+
+/// 设备状态枚举
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+  MAINTENANCE
+
+  @@map("device_status")
+}
+
+/// 设备数据表
+model DeviceData {
+  id        String   @id @default(cuid())
+  deviceId  String
+  data      Json
+  timestamp DateTime @default(now())
+  protocol  ProtocolType
+  source    String
+
+  // 关联关系
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("device_data")
+  @@index([deviceId, timestamp])
+  @@index([timestamp])
+}
+
+/// 协议类型枚举
+enum ProtocolType {
+  MQTT
+  TCP
+  UDP
+  HTTP
+  HTTPS
+  WEBSOCKET
+}
+
+// ==================== 告警相关模型 ====================
+
+/// 告警表
+model Alert {
+  id             String      @id @default(cuid())
+  deviceId       String
+  level          AlertLevel
+  status         AlertStatus @default(ACTIVE)
+  title          String
+  message        String
+  data           Json        @default("{}")
+  triggeredAt    DateTime    @default(now())
+  resolvedAt     DateTime?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+
+  // 关联关系
+  device         Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user           User?       @relation(fields: [acknowledgedBy], references: [id])
+
+  @@map("alerts")
+  @@index([deviceId, status])
+  @@index([triggeredAt])
+}
+
+/// 告警级别枚举
+enum AlertLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+/// 告警状态枚举
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+  SUPPRESSED
+}
+
+// ==================== 系统相关模型 ====================
+
+/// 系统配置表
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
+/// 日志表
+model Log {
+  id        String   @id @default(cuid())
+  level     LogLevel
+  message   String
+  data      Json?
+  userId    String?
+  deviceId  String?
+  timestamp DateTime @default(now())
+
+  // 关联关系
+  user      User?    @relation(fields: [userId], references: [id])
+  device    Device?  @relation(fields: [deviceId], references: [id])
+
+  @@map("logs")
+  @@index([level, timestamp])
+  @@index([userId])
+  @@index([deviceId])
+}
+
+/// 日志级别枚举
+enum LogLevel {
+  ERROR
+  WARN
+  INFO
+  DEBUG
+}
+
+// ==================== 会话相关模型 ====================
+
+/// 用户会话表
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联关系
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ==================== 文件上传相关模型 ====================
+
+/// 文件上传表
+model FileUpload {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  path        String
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  // 关联关系
+  user        User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("file_uploads")
+  @@index([uploadedBy])
+  @@index([createdAt])
+}
+
+// ==================== 设备模板相关模型 ====================
+
+/// 设备模板表
+model DeviceTemplate {
+  id          String     @id @default(cuid())
+  name        String
+  type        DeviceType
+  description String?
+  config      Json       @default("{}")
+  capabilities String[]  @default([])
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("device_templates")
+  @@index([type])
+}
+
+// ==================== 数据统计相关模型 ====================
+
+/// 系统统计表
+model SystemStats {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  totalUsers Int     @default(0)
+  totalDevices Int   @default(0)
+  onlineDevices Int  @default(0)
+  totalAlerts Int    @default(0)
+  activeAlerts Int   @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("system_stats")
+  @@unique([date])
+  @@index([date])
+}

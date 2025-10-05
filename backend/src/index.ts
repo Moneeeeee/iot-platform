@@ -1,0 +1,317 @@
+/**
+ * IoT设备管理平台后端服务入口文件
+ * 启动Express服务器和所有必要的服务
+ */
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+
+// 导入配置和服务
+import { db } from '@/config/database';
+import { logger, httpLogger } from '@/utils/logger';
+import { AuthMiddleware } from '@/middleware/auth';
+
+// 导入路由
+import authRoutes from '@/routes/auth';
+import userRoutes from '@/routes/users';
+import deviceRoutes from '@/routes/devices';
+import systemRoutes from '@/routes/system';
+
+// 导入服务
+import { MQTTService } from '@/services/mqtt';
+import { UDPService } from '@/services/udp';
+import { WebSocketService } from '@/services/websocket';
+import { AlertService } from '@/services/alert';
+
+// 加载环境变量
+dotenv.config();
+
+/**
+ * 应用程序类
+ */
+class Application {
+  private app: express.Application;
+  private server: any;
+  private io: SocketIOServer;
+  private port: number;
+
+  constructor() {
+    this.app = express();
+    this.port = parseInt(process.env.PORT || '8000', 10);
+    this.server = createServer(this.app);
+    this.io = new SocketIOServer(this.server, {
+      cors: {
+        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        methods: ['GET', 'POST'],
+        credentials: true,
+      },
+    });
+
+    this.initializeMiddleware();
+    this.initializeRoutes();
+    this.initializeServices();
+    this.initializeErrorHandling();
+  }
+
+  /**
+   * 初始化中间件
+   */
+  private initializeMiddleware(): void {
+    // 安全中间件
+    this.app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+        },
+      },
+    }));
+
+    // CORS配置
+    this.app.use(cors({
+      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }));
+
+    // 请求压缩
+    this.app.use(compression());
+
+    // 请求日志
+    this.app.use(morgan('combined', {
+      stream: {
+        write: (message: string) => {
+          httpLogger.http(message.trim());
+        },
+      },
+    }));
+
+    // 请求体解析
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // 速率限制
+    const limiter = rateLimit({
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15分钟
+      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10), // 限制每个IP 100次请求
+      message: {
+        success: false,
+        error: 'Too many requests from this IP, please try again later.',
+        timestamp: new Date(),
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    this.app.use('/api/', limiter);
+
+    // 静态文件服务
+    this.app.use('/uploads', express.static('uploads'));
+  }
+
+  /**
+   * 初始化路由
+   */
+  private initializeRoutes(): void {
+    // 健康检查端点
+    this.app.get('/health', async (req, res) => {
+      try {
+        const dbHealth = await db.healthCheck();
+        const status = dbHealth ? 'healthy' : 'unhealthy';
+        
+        res.status(dbHealth ? 200 : 503).json({
+          success: dbHealth,
+          status,
+          timestamp: new Date(),
+          services: {
+            database: dbHealth ? 'up' : 'down',
+            redis: 'up', // TODO: 添加Redis健康检查
+            mqtt: 'up',  // TODO: 添加MQTT健康检查
+          },
+        });
+      } catch (error) {
+        logger.error('Health check failed:', error);
+        res.status(503).json({
+          success: false,
+          status: 'unhealthy',
+          timestamp: new Date(),
+          error: 'Health check failed',
+        });
+      }
+    });
+
+    // API路由
+    this.app.use('/api/auth', authRoutes);
+    this.app.use('/api/users', AuthMiddleware.authenticate, userRoutes);
+    this.app.use('/api/devices', AuthMiddleware.authenticate, deviceRoutes);
+    this.app.use('/api/system', AuthMiddleware.authenticate, systemRoutes);
+
+    // 根路径
+    this.app.get('/', (req, res) => {
+      res.json({
+        success: true,
+        message: 'IoT Device Management Platform API',
+        version: '1.0.0',
+        timestamp: new Date(),
+        documentation: '/api/docs',
+      });
+    });
+
+    // 404处理
+    this.app.use('*', (req, res) => {
+      res.status(404).json({
+        success: false,
+        error: 'Route not found',
+        timestamp: new Date(),
+      });
+    });
+  }
+
+  /**
+   * 初始化服务
+   */
+  private async initializeServices(): Promise<void> {
+    try {
+      // 初始化WebSocket服务
+      const webSocketService = new WebSocketService(this.io);
+      await webSocketService.initialize();
+
+      // 初始化MQTT服务
+      const mqttService = new MQTTService();
+      await mqttService.initialize();
+
+      // 初始化UDP服务
+      const udpService = new UDPService();
+      await udpService.initialize();
+
+      // 初始化告警服务
+      const alertService = new AlertService();
+      await alertService.initialize();
+
+      logger.info('All services initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize services:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 初始化错误处理
+   */
+  private initializeErrorHandling(): void {
+    // 全局错误处理中间件
+    this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      logger.error('Unhandled error:', {
+        error: error.message,
+        stack: error.stack,
+        url: req.url,
+        method: req.method,
+        ip: req.ip,
+      });
+
+      // 不要在生产环境中暴露错误堆栈
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      res.status(error.status || 500).json({
+        success: false,
+        error: error.message || 'Internal server error',
+        ...(isDevelopment && { stack: error.stack }),
+        timestamp: new Date(),
+      });
+    });
+
+    // 处理未捕获的异常
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception:', error);
+      process.exit(1);
+    });
+
+    // 处理未处理的Promise拒绝
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      process.exit(1);
+    });
+
+    // 优雅关闭
+    process.on('SIGTERM', () => {
+      logger.info('SIGTERM received, shutting down gracefully');
+      this.shutdown();
+    });
+
+    process.on('SIGINT', () => {
+      logger.info('SIGINT received, shutting down gracefully');
+      this.shutdown();
+    });
+  }
+
+  /**
+   * 启动服务器
+   */
+  public async start(): Promise<void> {
+    try {
+      // 连接数据库
+      await db.connect();
+
+      // 启动HTTP服务器
+      this.server.listen(this.port, () => {
+        logger.info(`Server is running on port ${this.port}`);
+        logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info(`API Documentation: http://localhost:${this.port}/api/docs`);
+      });
+
+      // 设置服务器超时
+      this.server.timeout = 30000; // 30秒
+
+    } catch (error) {
+      logger.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+
+  /**
+   * 优雅关闭服务器
+   */
+  public async shutdown(): Promise<void> {
+    try {
+      logger.info('Shutting down server...');
+
+      // 关闭HTTP服务器
+      this.server.close(() => {
+        logger.info('HTTP server closed');
+      });
+
+      // 关闭数据库连接
+      await db.disconnect();
+
+      // 关闭其他服务
+      // TODO: 添加其他服务的关闭逻辑
+
+      logger.info('Server shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error during shutdown:', error);
+      process.exit(1);
+    }
+  }
+}
+
+// 创建并启动应用程序
+const app = new Application();
+
+// 启动服务器
+app.start().catch((error) => {
+  logger.error('Failed to start application:', error);
+  process.exit(1);
+});
+
+// 导出应用程序实例（用于测试）
+export default app;
