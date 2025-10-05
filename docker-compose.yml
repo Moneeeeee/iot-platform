@@ -61,6 +61,7 @@ services:
       - /app/node_modules
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+    user: "1001:1001"
     ports:
       - "8000:8000"
     depends_on:

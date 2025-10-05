@@ -93,7 +93,7 @@ export class AuthMiddleware {
           createdAt: true,
           updatedAt: true,
         },
-      });
+      }) as any;
 
       if (!user) {
         res.status(401).json({
@@ -117,7 +117,7 @@ export class AuthMiddleware {
       req.user = user;
 
       // 记录用户访问日志
-      logger.userAction(user.id, 'API_ACCESS', 'AUTHENTICATION');
+      logger.info('User API access', { userId: user.id, action: 'API_ACCESS' });
 
       next();
     } catch (error) {
@@ -162,11 +162,11 @@ export class AuthMiddleware {
       }
 
       // 检查用户权限
-      if (!req.user.permissions.includes(requiredPermission)) {
+      if (!(req.user as any).permissions.includes(requiredPermission)) {
         logger.warn('Permission denied', {
-          userId: req.user.id,
+          userId: (req.user as any).id,
           requiredPermission,
-          userPermissions: req.user.permissions,
+          userPermissions: (req.user as any).permissions,
         });
 
         res.status(403).json({
@@ -204,12 +204,12 @@ export class AuthMiddleware {
         [UserRole.VIEWER]: [UserRole.VIEWER],
       };
 
-      const allowedRoles = roleHierarchy[req.user.role] || [];
+      const allowedRoles = roleHierarchy[(req.user as any).role] || [];
       
       if (!allowedRoles.includes(requiredRole)) {
         logger.warn('Role access denied', {
-          userId: req.user.id,
-          userRole: req.user.role,
+          userId: (req.user as any).id,
+          userRole: (req.user as any).role,
           requiredRole,
         });
 
@@ -272,7 +272,7 @@ export class AuthMiddleware {
           createdAt: true,
           updatedAt: true,
         },
-      });
+      }) as any;
 
       if (user && user.isActive) {
         req.user = user;
@@ -319,7 +319,7 @@ export class AuthMiddleware {
       return;
     }
 
-    if (req.user.role === UserRole.ADMIN || req.user.role === UserRole.OPERATOR) {
+    if ((req.user as any).role === UserRole.ADMIN || (req.user as any).role === UserRole.OPERATOR) {
       next();
     } else {
       res.status(403).json({

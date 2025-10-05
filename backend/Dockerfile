@@ -9,7 +9,9 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    postgresql-client
+    postgresql-client \
+    openssl \
+    openssl-dev
 
 # 复制package.json和package-lock.json
 COPY package*.json ./
@@ -29,7 +31,8 @@ RUN adduser -S nodejs -u 1001
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/logs /app/uploads && \
-    chown -R nodejs:nodejs /app
+    chown -R nodejs:nodejs /app && \
+    chmod -R 775 /app/logs /app/uploads
 
 # 切换到非root用户
 USER nodejs
@@ -41,5 +44,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# 启动应用
+# 启动应用 - 使用预编译的JavaScript
 CMD ["npm", "start"]

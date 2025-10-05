@@ -104,7 +104,7 @@ router.post('/register', [
     });
 
     // 记录用户注册日志
-    logger.userAction(user.id, 'USER_REGISTER', 'USER', user.id);
+    logger.info('User registered', { userId: user.id, action: 'USER_REGISTER' });
 
     res.status(201).json({
       success: true,
@@ -189,7 +189,7 @@ router.post('/login', [
       process.env.JWT_SECRET!,
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-      }
+      } as any
     );
 
     // 更新最后登录时间
@@ -199,7 +199,7 @@ router.post('/login', [
     });
 
     // 记录用户登录日志
-    logger.userAction(user.id, 'USER_LOGIN', 'AUTHENTICATION');
+    logger.info('User login', { userId: user.id, action: 'USER_LOGIN' });
 
     // 返回用户信息和令牌
     const { passwordHash, ...userWithoutPassword } = user;
@@ -338,7 +338,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       process.env.JWT_SECRET!,
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-      }
+      } as any
     );
 
     res.json({
@@ -373,7 +373,7 @@ router.post('/logout', async (req: Request, res: Response) => {
       const token = authHeader.substring(7);
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-        logger.userAction(decoded.userId, 'USER_LOGOUT', 'AUTHENTICATION');
+        logger.info('User logout', { userId: decoded.userId, action: 'USER_LOGOUT' });
       } catch (error) {
         // 忽略令牌解析错误
       }

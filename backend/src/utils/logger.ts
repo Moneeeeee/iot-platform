@@ -6,6 +6,7 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
 
 /**
  * 日志级别配置
@@ -31,6 +32,14 @@ const logColors = {
 
 // 添加颜色支持
 winston.addColors(logColors);
+
+// 确保日志目录存在
+const logDir = process.env.LOG_DIR ?? path.join(process.cwd(), 'logs');
+try {
+  fs.mkdirSync(logDir, { recursive: true });
+} catch (error) {
+  console.warn('Failed to create log directory:', error);
+}
 
 /**
  * 日志格式配置
@@ -62,37 +71,38 @@ const transports: winston.transport[] = [
     format: logFormat,
   }),
 
+  // 暂时禁用文件日志以避免权限问题
   // 错误日志文件
-  new DailyRotateFile({
-    filename: path.join(process.cwd(), 'logs', 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'error',
-    format: fileLogFormat,
-    maxSize: '20m',
-    maxFiles: '14d',
-    zippedArchive: true,
-  }),
+  // new DailyRotateFile({
+  //   filename: path.join(process.cwd(), 'logs', 'error-%DATE%.log'),
+  //   datePattern: 'YYYY-MM-DD',
+  //   level: 'error',
+  //   format: fileLogFormat,
+  //   maxSize: '20m',
+  //   maxFiles: '14d',
+  //   zippedArchive: true,
+  // }),
 
-  // 综合日志文件
-  new DailyRotateFile({
-    filename: path.join(process.cwd(), 'logs', 'combined-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    format: fileLogFormat,
-    maxSize: '20m',
-    maxFiles: '14d',
-    zippedArchive: true,
-  }),
+  // 综合日志文件 - 暂时禁用
+  // new DailyRotateFile({
+  //   filename: path.join(process.cwd(), 'logs', 'combined-%DATE%.log'),
+  //   datePattern: 'YYYY-MM-DD',
+  //   format: fileLogFormat,
+  //   maxSize: '20m',
+  //   maxFiles: '14d',
+  //   zippedArchive: true,
+  // }),
 
-  // HTTP请求日志文件
-  new DailyRotateFile({
-    filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'http',
-    format: fileLogFormat,
-    maxSize: '20m',
-    maxFiles: '7d',
-    zippedArchive: true,
-  }),
+  // HTTP请求日志文件 - 暂时禁用
+  // new DailyRotateFile({
+  //   filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
+  //   datePattern: 'YYYY-MM-DD',
+  //   level: 'http',
+  //   format: fileLogFormat,
+  //   maxSize: '20m',
+  //   maxFiles: '7d',
+  //   zippedArchive: true,
+  // }),
 ];
 
 /**
@@ -127,13 +137,14 @@ export const httpLogger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
-    new DailyRotateFile({
-      filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '7d',
-      zippedArchive: true,
-    }),
+    // 暂时禁用HTTP日志文件以避免权限问题
+    // new DailyRotateFile({
+    //   filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
+    //   datePattern: 'YYYY-MM-DD',
+    //   maxSize: '20m',
+    //   maxFiles: '7d',
+    //   zippedArchive: true,
+    // }),
   ],
 });
 

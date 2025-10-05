@@ -18,33 +18,22 @@ class DatabaseService {
     this.prisma = new PrismaClient({
       log: [
         {
-          emit: 'event',
+          emit: 'stdout',
           level: 'query',
         },
         {
-          emit: 'event',
+          emit: 'stdout',
           level: 'error',
         },
         {
-          emit: 'event',
+          emit: 'stdout',
           level: 'info',
         },
         {
-          emit: 'event',
+          emit: 'stdout',
           level: 'warn',
         },
       ],
-    });
-
-    // 监听数据库查询事件
-    this.prisma.$on('query', (e) => {
-      if (process.env.NODE_ENV === 'development') {
-        logger.debug('Database Query:', {
-          query: e.query,
-          params: e.params,
-          duration: `${e.duration}ms`,
-        });
-      }
     });
 
     // 数据库连接成功
