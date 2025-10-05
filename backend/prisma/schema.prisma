@@ -170,8 +170,8 @@ model SystemConfig {
   id        String   @id @default(cuid())
   key       String   @unique
   value     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_configs")
 }

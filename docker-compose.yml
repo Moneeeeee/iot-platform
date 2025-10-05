@@ -56,6 +56,12 @@ services:
       - DATABASE_URL=postgresql://iot_user:iot_password@postgres:5432/iot_platform
       - REDIS_URL=redis://redis:6379
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - JWT_SECRET=iot-platform-super-secret-jwt-key-2024
+      - JWT_EXPIRES_IN=7d
+      - LOG_LEVEL=info
+      - CORS_ORIGIN=http://localhost:3000
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
     volumes:
       - ./backend:/app
       - /app/node_modules

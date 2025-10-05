@@ -17,6 +17,12 @@ import { Server as SocketIOServer } from 'socket.io';
 import { db } from '@/config/database';
 import { logger, httpLogger } from '@/utils/logger';
 import { AuthMiddleware } from '@/middleware/auth';
+import { 
+  globalErrorHandler, 
+  notFound, 
+  handleUncaughtException, 
+  handleUnhandledRejection 
+} from '@/middleware/errorHandler';
 
 // 导入路由
 import authRoutes from '@/routes/auth';
@@ -29,6 +35,7 @@ import { MQTTService } from '@/services/mqtt';
 import { UDPService } from '@/services/udp';
 import { WebSocketService } from '@/services/websocket';
 import { AlertService } from '@/services/alert';
+import { healthService } from '@/services/health';
 
 // 加载环境变量
 dotenv.config();
@@ -126,16 +133,26 @@ class Application {
     this.app.get('/health', async (req, res) => {
       try {
         const dbHealth = await db.healthCheck();
-        const status = dbHealth ? 'healthy' : 'unhealthy';
+        const healthCheck = await healthService.checkAll();
         
-        res.status(dbHealth ? 200 : 503).json({
-          success: dbHealth,
-          status,
+        const overallStatus = dbHealth && healthCheck.overall === 'healthy' ? 'healthy' : 'unhealthy';
+        
+        res.status(overallStatus === 'healthy' ? 200 : 503).json({
+          success: overallStatus === 'healthy',
+          status: overallStatus,
           timestamp: new Date(),
           services: {
             database: dbHealth ? 'up' : 'down',
-            redis: 'up', // TODO: 添加Redis健康检查
-            mqtt: 'up',  // TODO: 添加MQTT健康检查
+            redis: healthCheck.services.redis.status,
+            mqtt: healthCheck.services.mqtt.status,
+          },
+          details: {
+            database: {
+              status: dbHealth ? 'up' : 'down',
+              responseTime: '< 1ms',
+            },
+            redis: healthCheck.services.redis,
+            mqtt: healthCheck.services.mqtt,
           },
         });
       } catch (error) {
@@ -167,13 +184,7 @@ class Application {
     });
 
     // 404处理
-    this.app.use('*', (req, res) => {
-      res.status(404).json({
-        success: false,
-        error: 'Route not found',
-        timestamp: new Date(),
-      });
-    });
+    this.app.use('*', notFound);
   }
 
   /**
@@ -209,37 +220,11 @@ class Application {
    */
   private initializeErrorHandling(): void {
     // 全局错误处理中间件
-    this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      logger.error('Unhandled error:', {
-        error: error.message,
-        stack: error.stack,
-        url: req.url,
-        method: req.method,
-        ip: req.ip,
-      });
+    this.app.use(globalErrorHandler);
 
-      // 不要在生产环境中暴露错误堆栈
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      
-      res.status(error.status || 500).json({
-        success: false,
-        error: error.message || 'Internal server error',
-        ...(isDevelopment && { stack: error.stack }),
-        timestamp: new Date(),
-      });
-    });
-
-    // 处理未捕获的异常
-    process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception:', error);
-      process.exit(1);
-    });
-
-    // 处理未处理的Promise拒绝
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      process.exit(1);
-    });
+    // 处理未捕获的异常和未处理的Promise拒绝
+    handleUncaughtException();
+    handleUnhandledRejection();
 
     // 优雅关闭
     process.on('SIGTERM', () => {

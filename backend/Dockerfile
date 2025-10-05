@@ -32,7 +32,7 @@ RUN adduser -S nodejs -u 1001
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/logs /app/uploads && \
     chown -R nodejs:nodejs /app && \
-    chmod -R 775 /app/logs /app/uploads
+    chmod -R 755 /app/logs /app/uploads
 
 # 切换到非root用户
 USER nodejs

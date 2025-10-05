@@ -137,14 +137,21 @@ export const httpLogger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
-    // 暂时禁用HTTP日志文件以避免权限问题
-    // new DailyRotateFile({
-    //   filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
-    //   datePattern: 'YYYY-MM-DD',
-    //   maxSize: '20m',
-    //   maxFiles: '7d',
-    //   zippedArchive: true,
-    // }),
+    // 在开发环境中使用控制台输出，生产环境使用文件
+    ...(process.env.NODE_ENV === 'development' 
+      ? [new winston.transports.Console({
+          format: winston.format.simple()
+        })]
+      : [
+          new DailyRotateFile({
+            filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            maxSize: '20m',
+            maxFiles: '7d',
+            zippedArchive: true,
+          })
+        ]
+    ),
   ],
 });
 
