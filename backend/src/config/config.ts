@@ -116,6 +116,9 @@ class ConfigManager {
         const configData = fs.readFileSync(this.configPath, 'utf8');
         this.config = JSON.parse(configData);
         console.log('Configuration loaded from JSON file');
+        
+        // 设置环境变量以便Prisma使用
+        this.setEnvironmentVariables();
       } else {
         console.log(`Config file not found: ${this.configPath}, using environment variables`);
         this.config = this.loadFromEnvironment();
@@ -127,6 +130,46 @@ class ConfigManager {
     }
 
     return this.config!;
+  }
+
+  /**
+   * 设置环境变量以便Prisma等工具使用
+   */
+  private setEnvironmentVariables(): void {
+    if (!this.config) return;
+    
+    // 设置数据库URL
+    if (this.config.database?.url) {
+      process.env.DATABASE_URL = this.config.database.url;
+    }
+    
+    // 设置Redis URL
+    if (this.config.redis?.url) {
+      process.env.REDIS_URL = this.config.redis.url;
+    }
+    
+    // 设置MQTT URL
+    if (this.config.mqtt?.broker) {
+      process.env.MQTT_BROKER_URL = this.config.mqtt.broker;
+    }
+    
+    // 设置JWT密钥
+    if (this.config.jwt?.secret) {
+      process.env.JWT_SECRET = this.config.jwt.secret;
+    }
+    
+    // 设置速率限制配置
+    if (this.config.rateLimit?.windowMs) {
+      process.env.RATE_LIMIT_WINDOW_MS = this.config.rateLimit.windowMs.toString();
+    }
+    if (this.config.rateLimit?.maxRequests) {
+      process.env.RATE_LIMIT_MAX_REQUESTS = this.config.rateLimit.maxRequests.toString();
+    }
+    
+    // 设置日志级别
+    if (this.config.logging?.level) {
+      process.env.LOG_LEVEL = this.config.logging.level;
+    }
   }
 
   /**

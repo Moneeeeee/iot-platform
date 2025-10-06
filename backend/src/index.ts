@@ -31,6 +31,7 @@ import userRoutes from '@/routes/users';
 import deviceRoutes from '@/routes/devices';
 import systemRoutes from '@/routes/system';
 import powersafeRoutes from '@/routes/powersafe';
+import deviceBootstrapRoutes from '@/routes/device-bootstrap';
 
 // 导入服务
 import { MQTTService } from '@/services/mqtt';
@@ -216,6 +217,7 @@ class Application {
     this.app.use('/api/devices', AuthMiddleware.authenticate, deviceRoutes);
     this.app.use('/api/system', AuthMiddleware.authenticate, systemRoutes);
     this.app.use('/api/powersafe', powersafeRoutes);
+    this.app.use('/api/device', deviceBootstrapRoutes); // 通用设备引导路由
 
     // 根路径
     this.app.get('/', (req, res) => {

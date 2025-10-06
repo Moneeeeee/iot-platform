@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { UserRole, Permission, Language } from '@/types';
+import { config } from '@/config/config';
 
 const router = Router();
 
@@ -89,6 +90,7 @@ router.post('/register', [
         role,
         permissions,
         language,
+        tenant: 'default', // 添加必需的tenant字段
       },
       select: {
         id: true,
@@ -186,7 +188,7 @@ router.post('/login', [
         role: user.role,
         permissions: user.permissions,
       },
-      process.env.JWT_SECRET!,
+      config.jwt.secret,
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       } as any
@@ -244,7 +246,7 @@ router.get('/me', async (req: Request, res: Response) => {
     const token = authHeader.substring(7);
     
     // 验证令牌
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, config.jwt.secret) as any;
     
     // 获取用户信息
     const user = await prisma.user.findUnique({
@@ -305,7 +307,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     const token = authHeader.substring(7);
     
     // 验证令牌（即使过期也要能解析）
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!, { ignoreExpiration: true }) as any;
+    const decoded = jwt.verify(token, config.jwt.secret, { ignoreExpiration: true }) as any;
     
     // 获取用户信息
     const user = await prisma.user.findUnique({
@@ -335,7 +337,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
         role: user.role,
         permissions: user.permissions,
       },
-      process.env.JWT_SECRET!,
+      config.jwt.secret,
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       } as any
@@ -372,7 +374,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        const decoded = jwt.verify(token, config.jwt.secret) as any;
         logger.info('User logout', { userId: decoded.userId, action: 'USER_LOGOUT' });
       } catch (error) {
         // 忽略令牌解析错误

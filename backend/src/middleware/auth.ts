@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@/config/database';
 import { User, UserRole, Permission } from '@/types';
 import { logger } from '@/utils/logger';
+import { config } from '@/config/config';
 
 /**
  * 扩展Express Request接口，添加用户信息
@@ -75,7 +76,7 @@ export class AuthMiddleware {
       // 验证JWT令牌
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET!
+        config.jwt.secret
       ) as JWTPayload;
 
       // 从数据库获取用户信息
@@ -255,7 +256,7 @@ export class AuthMiddleware {
       // 尝试验证令牌
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET!
+        config.jwt.secret
       ) as JWTPayload;
 
       const user = await prisma.user.findUnique({

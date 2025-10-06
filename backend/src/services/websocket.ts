@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { logger } from '@/utils/logger';
 import { prisma } from '@/config/database';
 import { User } from '@/types';
+import { config } from '@/config/config';
 
 /**
  * WebSocket连接信息接口
@@ -70,7 +71,7 @@ export class WebSocketService extends EventEmitter {
       }
 
       // 验证JWT令牌
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
       
       // 获取用户信息
       const user = await prisma.user.findUnique({
@@ -200,7 +201,7 @@ export class WebSocketService extends EventEmitter {
     if (!connection) return;
 
     // 检查用户权限
-    if (!connection.user.permissions.includes('device:read')) {
+    if (!connection.user.permissions.includes('device:read' as any)) {
       socket.emit('error', {
         message: 'Insufficient permissions to subscribe to device data',
         code: 'PERMISSION_DENIED',
@@ -278,7 +279,7 @@ export class WebSocketService extends EventEmitter {
     if (!connection) return;
 
     // 检查用户权限
-    if (!connection.user.permissions.includes('device:control')) {
+    if (!connection.user.permissions.includes('device:control' as any)) {
       socket.emit('error', {
         message: 'Insufficient permissions to control device',
         code: 'PERMISSION_DENIED',
@@ -508,5 +509,4 @@ export class WebSocketService extends EventEmitter {
   }
 }
 
-// 导出WebSocket服务类
-export { WebSocketService };
+// WebSocket服务类已在上面导出

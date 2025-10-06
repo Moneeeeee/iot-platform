@@ -138,6 +138,8 @@
 
 此接口专门为设备端设计，直接返回设备期望的JSON格式，无需包装在success/data中。
 
+> **重要更新**: 此接口已更新为新的URL地址，请使用 `https://fountain.top/Powersafe/api/ota/check-device`
+
 #### 请求参数
 
 ```json

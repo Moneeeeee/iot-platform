@@ -306,7 +306,7 @@ export class AlertService extends EventEmitter {
       rule.lastTriggered = new Date();
 
       // 创建告警记录
-      const alert = await prisma.alert.create({
+      const alert = await prisma.eventAlert.create({
         data: {
           deviceId,
           level: rule.level,
@@ -466,7 +466,7 @@ export class AlertService extends EventEmitter {
    */
   public async resolveAlert(alertId: string, userId: string): Promise<void> {
     try {
-      const alert = await prisma.alert.update({
+      const alert = await prisma.eventAlert.update({
         where: { id: alertId },
         data: {
           status: AlertStatus.RESOLVED,
@@ -495,7 +495,7 @@ export class AlertService extends EventEmitter {
       const retentionDays = parseInt(process.env.ALERT_RETENTION_DAYS || '30', 10);
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-      const result = await prisma.alert.deleteMany({
+      const result = await prisma.eventAlert.deleteMany({
         where: {
           status: "RESOLVED",
           resolvedAt: {
@@ -524,14 +524,14 @@ export class AlertService extends EventEmitter {
         alertsByLevel,
         recentAlerts,
       ] = await Promise.all([
-        prisma.alert.count(),
-        prisma.alert.count({ where: { status: AlertStatus.ACTIVE } }),
-        prisma.alert.groupBy({
+        prisma.eventAlert.count(),
+        prisma.eventAlert.count({ where: { status: AlertStatus.ACTIVE } }),
+        prisma.eventAlert.groupBy({
           by: ['level'],
           _count: { level: true },
           where: { status: AlertStatus.ACTIVE },
         }),
-        prisma.alert.findMany({
+        prisma.eventAlert.findMany({
           where: {
             triggeredAt: {
               gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // 最近24小时

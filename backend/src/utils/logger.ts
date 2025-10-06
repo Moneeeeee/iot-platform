@@ -293,6 +293,15 @@ export class Logger {
   }
 
   /**
+   * 记录错误日志
+   * @param message 日志消息
+   * @param meta 附加信息
+   */
+  static error(message: string, meta?: any): void {
+    logger.error(message, meta);
+  }
+
+  /**
    * 记录警告日志
    * @param message 日志消息
    * @param meta 附加信息

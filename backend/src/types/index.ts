@@ -9,9 +9,9 @@
  * 用户角色枚举
  */
 export enum UserRole {
-  ADMIN = 'admin',           // 管理员
-  OPERATOR = 'operator',     // 操作员
-  VIEWER = 'viewer'         // 查看者
+  ADMIN = 'ADMIN',           // 管理员
+  OPERATOR = 'OPERATOR',     // 操作员
+  VIEWER = 'VIEWER'         // 查看者
 }
 
 /**

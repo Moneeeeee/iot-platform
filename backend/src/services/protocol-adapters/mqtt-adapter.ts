@@ -105,34 +105,42 @@ export class MQTTAdapter extends EventEmitter {
   }
 
   /**
-   * 订阅设备主题
+   * 订阅设备主题 - 支持新的主题结构
+   * 新结构: iot/{tenant}/{deviceType}/{deviceId}/{channel}/{subchannel?}
+   * 旧结构: devices/{deviceId}/{channel} (保持兼容)
    */
   private subscribeToTopics(): void {
     if (!this.client || !this.isConnected) return;
 
     const topics = [
-      // 设备遥测数据
+      // 新架构主题 - 多租户支持
+      'iot/+/+/+/telemetry',
+      'iot/+/+/+/status',
+      'iot/+/+/+/event',
+      'iot/+/+/+/cmdres',
+      'iot/+/+/+/shadow/reported',
+      'iot/+/+/+/ota/progress',
+      
+      // 旧架构主题 - 保持向后兼容
       'devices/+/telemetry',
       'devices/+/data',
-      
-      // 设备状态
       'devices/+/status',
       'devices/+/online',
       'devices/+/offline',
-      
-      // 设备事件
       'devices/+/events',
       'devices/+/alert',
-      
-      // OTA 相关
       'devices/+/ota/progress',
       'devices/+/ota/status',
-      
-      // 设备指令响应
       'devices/+/command/response',
+      
+      // PowerSafe特定主题 - 保持兼容
+      'powersafe/+/data',
+      'powersafe/+/status',
+      'powersafe/+/event',
       
       // 通配符订阅（可选）
       'devices/#',
+      'iot/#',
     ];
 
     for (const topic of topics) {
