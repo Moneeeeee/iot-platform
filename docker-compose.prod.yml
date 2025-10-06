@@ -1,0 +1,91 @@
+# 生产环境配置
+# 使用 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  # PostgreSQL 生产环境
+  postgres:
+    container_name: iot-postgres-prod
+    environment:
+      POSTGRES_PASSWORD: CHANGE_ME_IN_PRODUCTION
+    volumes:
+      # 生产环境使用覆盖配置
+      - ./docker/postgres/postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
+      - ./docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Redis 生产环境
+  redis:
+    container_name: iot-redis-prod
+    volumes:
+      # 生产环境使用覆盖配置
+      - ./docker/redis/redis.prod.conf:/etc/redis/redis.conf:ro
+    command: redis-server /etc/redis/redis.conf
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # EMQX 生产环境
+  emqx:
+    container_name: iot-emqx-prod
+    volumes:
+      # 生产环境使用覆盖配置
+      - ./docker/emqx/emqx.prod.conf:/opt/emqx/etc/emqx.conf:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Backend 生产环境
+  backend:
+    container_name: iot-backend-prod
+    environment:
+      - NODE_ENV=production
+      - CONFIG_FILE=/app/config/config.prod.json
+    volumes:
+      # 生产环境使用覆盖配置
+      - ./docker/backend/config.prod.json:/app/config/config.prod.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
+
+  # Frontend 生产环境
+  frontend:
+    container_name: iot-frontend-prod
+    environment:
+      - NODE_ENV=production
+      - CONFIG_FILE=/app/config/config.json
+    volumes:
+      # 生产环境使用基线配置（前端配置相对简单）
+      - ./docker/frontend/config.json:/app/config/config.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'

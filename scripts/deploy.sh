@@ -50,9 +50,16 @@ check_dependencies() {
 create_directories() {
     log_info "创建必要的目录..."
     
-    mkdir -p logs
-    mkdir -p uploads
+    # 创建uploads子目录结构
+    mkdir -p uploads/{images/{avatars,devices,thumbnails,temp},documents/{manuals,certificates,reports},firmware/{ota,backup},exports/{data,logs,reports}}
+    
+    # 创建其他必要目录
     mkdir -p nginx/ssl
+    mkdir -p logs
+    
+    # 创建.gitkeep文件保持目录结构
+    touch uploads/.gitkeep
+    find uploads/ -type d -exec touch {}/.gitkeep \;
     
     log_success "目录创建完成"
 }

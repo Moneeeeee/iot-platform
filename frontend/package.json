@@ -16,7 +16,11 @@
     "clean": "rm -rf .next node_modules/.cache",
     "analyze": "ANALYZE=true npm run build",
     "docker:build": "docker build -t iot-platform-frontend .",
-    "docker:run": "docker run -p 3000:3000 iot-platform-frontend"
+    "docker:run": "docker run -p 3000:3000 iot-platform-frontend",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

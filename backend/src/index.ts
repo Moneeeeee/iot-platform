@@ -15,6 +15,7 @@ import { Server as SocketIOServer } from 'socket.io';
 
 // 导入配置和服务
 import { db } from '@/config/database';
+import { configManager } from '@/config/config';
 import { logger, httpLogger } from '@/utils/logger';
 import { AuthMiddleware } from '@/middleware/auth';
 import { 

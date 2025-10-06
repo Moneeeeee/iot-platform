@@ -39,20 +39,6 @@ services:
     image: emqx/emqx:5.4.0
     container_name: iot-emqx
     environment:
-      - EMQX_NAME=iot-emqx
-      - EMQX_HOST=iot-emqx
-      - EMQX_DASHBOARD__DEFAULT_USERNAME=admin
-      - EMQX_DASHBOARD__DEFAULT_PASSWORD=public
-      - EMQX_LISTENERS__TCP__DEFAULT__BIND=0.0.0.0:1883
-      - EMQX_LISTENERS__WS__DEFAULT__BIND=0.0.0.0:8083
-      - EMQX_LISTENERS__WSS__DEFAULT__BIND=0.0.0.0:8084
-      - EMQX_LISTENERS__HTTP__DEFAULT__BIND=0.0.0.0:8081
-      - EMQX_LISTENERS__HTTPS__DEFAULT__BIND=0.0.0.0:8089
-      # 允许匿名连接（开发环境）
-      - EMQX_AUTHENTICATION__ANONYMOUS__ENABLE=true
-      # 配置用户名密码认证
-      - EMQX_AUTHENTICATION__PASSWORD__ENABLE=true
-      - EMQX_AUTHENTICATION__PASSWORD__BACKEND=built_in_database
       - TZ=Asia/Shanghai
     volumes:
       - emqx_data:/opt/emqx/data
@@ -81,21 +67,15 @@ services:
     container_name: iot-backend
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://iot_user:iot_password@postgres:5432/iot_platform
-      - REDIS_URL=redis://redis:6379
-      - MQTT_BROKER_URL=mqtt://emqx:1883
-      - JWT_SECRET=iot-platform-super-secret-jwt-key-2024
-      - JWT_EXPIRES_IN=7d
-      - LOG_LEVEL=info
-      - CORS_ORIGIN=http://localhost:3000,http://fountain.top
-      - RATE_LIMIT_WINDOW_MS=900000
-      - RATE_LIMIT_MAX_REQUESTS=100
       - TZ=Asia/Shanghai
+      # 使用配置文件
+      - CONFIG_FILE=/app/config/config.json
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      # 使用配置文件
+      - ./docker/backend/config.json:/app/config/config.json:ro
     user: "1001:1001"
     ports:
       - "8000:8000"
@@ -115,7 +95,6 @@ services:
     container_name: iot-frontend
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=
       - TZ=Asia/Shanghai
     volumes:
       - ./frontend:/app

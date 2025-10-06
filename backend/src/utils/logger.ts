@@ -33,13 +33,8 @@ const logColors = {
 // 添加颜色支持
 winston.addColors(logColors);
 
-// 确保日志目录存在
-const logDir = process.env.LOG_DIR ?? path.join(process.cwd(), 'logs');
-try {
-  fs.mkdirSync(logDir, { recursive: true });
-} catch (error) {
-  console.warn('Failed to create log directory:', error);
-}
+// 新架构：所有日志输出到stdout/stderr，不需要创建本地日志目录
+// 日志由Docker日志驱动统一管理
 
 /**
  * 获取中国时区时间戳
@@ -51,9 +46,33 @@ const getChinaTimestamp = () => {
 };
 
 /**
- * 日志格式配置
+ * JSON结构化日志格式配置
  */
-const logFormat = winston.format.combine(
+const jsonLogFormat = winston.format.combine(
+  winston.format.timestamp({ 
+    format: () => getChinaTimestamp()
+  }),
+  winston.format.errors({ stack: true }),
+  winston.format.json({
+    space: 0,
+    replacer: (key, value) => {
+      // 确保所有字段都是可序列化的
+      if (value instanceof Error) {
+        return {
+          message: value.message,
+          stack: value.stack,
+          name: value.name
+        };
+      }
+      return value;
+    }
+  })
+);
+
+/**
+ * 控制台日志格式配置（仅开发环境）
+ */
+const consoleLogFormat = winston.format.combine(
   winston.format.timestamp({ 
     format: () => getChinaTimestamp()
   }),
@@ -64,58 +83,15 @@ const logFormat = winston.format.combine(
 );
 
 /**
- * 文件日志格式配置
- */
-const fileLogFormat = winston.format.combine(
-  winston.format.timestamp({ 
-    format: () => getChinaTimestamp()
-  }),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
-
-/**
- * 创建日志传输器
+ * 创建日志传输器 - 只输出到stdout/stderr
  */
 const transports: winston.transport[] = [
-  // 控制台输出
+  // 统一输出到stdout，使用JSON格式
   new winston.transports.Console({
-    level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
-    format: logFormat,
+    level: process.env.LOG_LEVEL || 'info',
+    format: process.env.NODE_ENV === 'development' ? consoleLogFormat : jsonLogFormat,
+    stderrLevels: ['error', 'fatal'], // 错误级别输出到stderr
   }),
-
-  // 暂时禁用文件日志以避免权限问题
-  // 错误日志文件
-  // new DailyRotateFile({
-  //   filename: path.join(process.cwd(), 'logs', 'error-%DATE%.log'),
-  //   datePattern: 'YYYY-MM-DD',
-  //   level: 'error',
-  //   format: fileLogFormat,
-  //   maxSize: '20m',
-  //   maxFiles: '14d',
-  //   zippedArchive: true,
-  // }),
-
-  // 综合日志文件 - 暂时禁用
-  // new DailyRotateFile({
-  //   filename: path.join(process.cwd(), 'logs', 'combined-%DATE%.log'),
-  //   datePattern: 'YYYY-MM-DD',
-  //   format: fileLogFormat,
-  //   maxSize: '20m',
-  //   maxFiles: '14d',
-  //   zippedArchive: true,
-  // }),
-
-  // HTTP请求日志文件 - 暂时禁用
-  // new DailyRotateFile({
-  //   filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
-  //   datePattern: 'YYYY-MM-DD',
-  //   level: 'http',
-  //   format: fileLogFormat,
-  //   maxSize: '20m',
-  //   maxFiles: '7d',
-  //   zippedArchive: true,
-  // }),
 ];
 
 /**
@@ -124,18 +100,20 @@ const transports: winston.transport[] = [
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   levels: logLevels,
-  format: fileLogFormat,
+  format: jsonLogFormat,
   transports,
-  // 处理未捕获的异常
+  // 处理未捕获的异常 - 输出到stderr
   exceptionHandlers: [
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'exceptions.log'),
+    new winston.transports.Console({
+      format: jsonLogFormat,
+      stderrLevels: ['error'],
     }),
   ],
-  // 处理未处理的Promise拒绝
+  // 处理未处理的Promise拒绝 - 输出到stderr
   rejectionHandlers: [
-    new winston.transports.File({
-      filename: path.join(process.cwd(), 'logs', 'rejections.log'),
+    new winston.transports.Console({
+      format: jsonLogFormat,
+      stderrLevels: ['error'],
     }),
   ],
 });
@@ -145,42 +123,173 @@ const logger = winston.createLogger({
  */
 export const httpLogger = winston.createLogger({
   level: 'http',
-  format: winston.format.combine(
-    winston.format.timestamp({ 
-      format: () => getChinaTimestamp()
-    }),
-    winston.format.json()
-  ),
+  format: jsonLogFormat,
   transports: [
-    // 在开发环境中使用控制台输出，生产环境使用文件
-    ...(process.env.NODE_ENV === 'development' 
-      ? [new winston.transports.Console({
-          format: winston.format.simple()
-        })]
-      : [
-          new DailyRotateFile({
-            filename: path.join(process.cwd(), 'logs', 'http-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            maxSize: '20m',
-            maxFiles: '7d',
-            zippedArchive: true,
-          })
-        ]
-    ),
+    new winston.transports.Console({
+      format: process.env.NODE_ENV === 'development' ? consoleLogFormat : jsonLogFormat,
+    }),
   ],
 });
+
+/**
+ * 结构化日志接口
+ */
+interface StructuredLog {
+  service: string;
+  component: string;
+  level: string;
+  message: string;
+  timestamp: string;
+  traceId?: string;
+  userId?: string;
+  deviceId?: string;
+  metadata?: Record<string, any>;
+  error?: {
+    message: string;
+    stack?: string;
+    name: string;
+  };
+}
 
 /**
  * 日志工具类
  */
 export class Logger {
+  private service: string;
+  private component: string;
+
+  constructor(service: string = 'backend', component: string = 'app') {
+    this.service = service;
+    this.component = component;
+  }
+
+  /**
+   * 创建结构化日志对象
+   */
+  private createStructuredLog(
+    level: string,
+    message: string,
+    metadata?: Record<string, any>,
+    error?: Error
+  ): StructuredLog {
+    return {
+      service: this.service,
+      component: this.component,
+      level,
+      message,
+      timestamp: getChinaTimestamp(),
+      ...(metadata && { metadata }),
+      ...(error && {
+        error: {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        },
+      }),
+    };
+  }
+
   /**
    * 记录错误日志
    * @param message 日志消息
-   * @param meta 附加信息
+   * @param metadata 附加信息
+   * @param error 错误对象
    */
-  static error(message: string, meta?: any): void {
-    logger.error(message, meta);
+  error(message: string, metadata?: Record<string, any>, error?: Error): void {
+    const structuredLog = this.createStructuredLog('error', message, metadata, error);
+    logger.error(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录警告日志
+   * @param message 日志消息
+   * @param metadata 附加信息
+   */
+  warn(message: string, metadata?: Record<string, any>): void {
+    const structuredLog = this.createStructuredLog('warn', message, metadata);
+    logger.warn(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录信息日志
+   * @param message 日志消息
+   * @param metadata 附加信息
+   */
+  info(message: string, metadata?: Record<string, any>): void {
+    const structuredLog = this.createStructuredLog('info', message, metadata);
+    logger.info(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录调试日志
+   * @param message 日志消息
+   * @param metadata 附加信息
+   */
+  debug(message: string, metadata?: Record<string, any>): void {
+    const structuredLog = this.createStructuredLog('debug', message, metadata);
+    logger.debug(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录HTTP请求日志
+   * @param message 日志消息
+   * @param metadata 请求信息
+   */
+  http(message: string, metadata?: Record<string, any>): void {
+    const structuredLog = this.createStructuredLog('http', message, metadata);
+    httpLogger.http(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录设备数据日志
+   * @param deviceId 设备ID
+   * @param data 设备数据
+   * @param source 数据来源
+   */
+  deviceData(deviceId: string, data: any, source: string): void {
+    const metadata = {
+      deviceId,
+      source,
+      dataType: typeof data,
+      dataSize: JSON.stringify(data).length,
+    };
+    const structuredLog = this.createStructuredLog('info', 'Device data received', metadata);
+    logger.info(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录告警日志
+   * @param alertId 告警ID
+   * @param deviceId 设备ID
+   * @param level 告警级别
+   * @param message 告警消息
+   */
+  alert(alertId: string, deviceId: string, level: string, message: string): void {
+    const metadata = {
+      alertId,
+      deviceId,
+      alertLevel: level,
+    };
+    const structuredLog = this.createStructuredLog('warn', `Alert: ${message}`, metadata);
+    logger.warn(JSON.stringify(structuredLog));
+  }
+
+  /**
+   * 记录用户操作日志
+   * @param userId 用户ID
+   * @param action 操作类型
+   * @param resource 资源类型
+   * @param metadata 附加信息
+   */
+  userAction(userId: string, action: string, resource: string, metadata?: Record<string, any>): void {
+    const logMetadata = {
+      userId,
+      action,
+      resource,
+      ...metadata,
+    };
+    const structuredLog = this.createStructuredLog('info', `User action: ${action}`, logMetadata);
+    logger.info(JSON.stringify(structuredLog));
   }
 
   /**
@@ -300,7 +409,17 @@ export class Logger {
   }
 }
 
-// 导出默认日志器实例
+// 导出默认的Logger实例
+export const defaultLogger = new Logger('backend', 'app');
+
+// 导出组件特定的Logger实例
+export const mqttLogger = new Logger('backend', 'mqtt');
+export const databaseLogger = new Logger('backend', 'database');
+export const authLogger = new Logger('backend', 'auth');
+export const alertLogger = new Logger('backend', 'alert');
+export const websocketLogger = new Logger('backend', 'websocket');
+
+// 导出默认日志器实例（向后兼容）
 export { logger };
 
 // 默认导出

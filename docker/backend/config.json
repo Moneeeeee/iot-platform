@@ -1,0 +1,66 @@
+{
+  "server": {
+    "port": 8000,
+    "host": "0.0.0.0",
+    "cors": {
+      "origin": ["http://localhost:3000"],
+      "credentials": true
+    }
+  },
+  "database": {
+    "url": "postgresql://iot_user:iot_password@postgres:5432/iot_platform",
+    "pool": {
+      "min": 2,
+      "max": 10
+    }
+  },
+  "redis": {
+    "url": "redis://redis:6379",
+    "retryDelayOnFailover": 100,
+    "maxRetriesPerRequest": 3
+  },
+  "mqtt": {
+    "broker": "mqtt://emqx:1883",
+    "options": {
+      "clientId": "iot-backend",
+      "keepalive": 60,
+      "reconnectPeriod": 5000,
+      "connectTimeout": 30000
+    }
+  },
+  "jwt": {
+    "secret": "iot-platform-super-secret-jwt-key-2024",
+    "expiresIn": "7d",
+    "algorithm": "HS256"
+  },
+  "rateLimit": {
+    "windowMs": 900000,
+    "maxRequests": 100,
+    "skipSuccessfulRequests": false
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stdout"
+  },
+  "security": {
+    "bcryptRounds": 12,
+    "sessionSecret": "iot-platform-session-secret-2024"
+  },
+  "features": {
+    "registration": true,
+    "emailVerification": false,
+    "passwordReset": true,
+    "twoFactorAuth": false
+  },
+  "alerts": {
+    "enabled": true,
+    "checkInterval": 30000,
+    "retentionDays": 30
+  },
+  "healthCheck": {
+    "enabled": true,
+    "interval": 30000,
+    "timeout": 5000
+  }
+}

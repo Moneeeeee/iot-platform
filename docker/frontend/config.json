@@ -1,0 +1,73 @@
+{
+  "app": {
+    "name": "IoT设备管理平台",
+    "version": "1.0.0",
+    "description": "专业的IoT设备管理平台",
+    "author": "IoT Platform Team"
+  },
+  "api": {
+    "baseUrl": "",
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 1000
+  },
+  "websocket": {
+    "url": "ws://localhost:8000/ws",
+    "reconnectInterval": 5000,
+    "heartbeatInterval": 30000,
+    "timeout": 10000
+  },
+  "ui": {
+    "theme": {
+      "primary": "#1976d2",
+      "secondary": "#dc004e",
+      "success": "#4caf50",
+      "warning": "#ff9800",
+      "error": "#f44336",
+      "info": "#2196f3"
+    },
+    "layout": {
+      "sidebarWidth": 240,
+      "headerHeight": 64,
+      "footerHeight": 48
+    },
+    "pagination": {
+      "defaultPageSize": 20,
+      "pageSizeOptions": [10, 20, 50, 100]
+    }
+  },
+  "features": {
+    "darkMode": true,
+    "multiLanguage": true,
+    "realTimeUpdates": true,
+    "dataExport": true,
+    "advancedCharts": true
+  },
+  "i18n": {
+    "defaultLocale": "zh-CN",
+    "supportedLocales": ["zh-CN", "en-US"],
+    "fallbackLocale": "zh-CN"
+  },
+  "charts": {
+    "defaultRefreshInterval": 5000,
+    "maxDataPoints": 1000,
+    "animationDuration": 300
+  },
+  "notifications": {
+    "enabled": true,
+    "position": "top-right",
+    "duration": 5000,
+    "maxNotifications": 5
+  },
+  "performance": {
+    "lazyLoading": true,
+    "codeSplitting": true,
+    "preloadCriticalChunks": true,
+    "cacheStrategy": "aggressive"
+  },
+  "security": {
+    "csrfProtection": true,
+    "xssProtection": true,
+    "contentSecurityPolicy": true
+  }
+}

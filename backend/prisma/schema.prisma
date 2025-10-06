@@ -15,16 +15,18 @@ datasource db {
 /// 用户表
 model User {
   id           String   @id @default(cuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String     @map("password_hash")
+  username     String   @unique @db.VarChar(50)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
   role         UserRole   @default(VIEWER)
   permissions  String[]   @default([])
   language     Language   @default(ZH_CN)
   isActive     Boolean    @default(true) @map("is_active")
+  isDeleted    Boolean    @default(false) @map("is_deleted")
   lastLoginAt  DateTime?  @map("last_login_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
 
   // 关联关系
   devices      Device[]
@@ -34,6 +36,11 @@ model User {
   fileUploads  FileUpload[]
 
   @@map("users")
+  @@index([username])
+  @@index([email])
+  @@index([isActive])
+  @@index([isDeleted])
+  @@index([lastLoginAt])
 }
 
 /// 用户角色枚举
@@ -57,15 +64,17 @@ enum Language {
 /// 设备表
 model Device {
   id          String       @id @default(cuid())
-  slug        String       @unique
-  name        String
+  slug        String       @unique @db.VarChar(100)
+  name        String       @db.VarChar(255)
   type        DeviceType
   status      DeviceStatus @default(OFFLINE)
   config      Json         @default("{}")
   capabilities String[]    @default([])
   lastSeenAt  DateTime?    @map("last_seen_at")
+  isDeleted   Boolean      @default(false) @map("is_deleted")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at")
 
   // 关联关系
   userId      String       @map("user_id")
@@ -75,6 +84,12 @@ model Device {
   logs        Log[]
 
   @@map("devices")
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([isDeleted])
+  @@index([lastSeenAt])
+  @@index([createdAt])
 }
 
 /// 设备类型枚举
@@ -146,7 +161,10 @@ model Alert {
 
   @@map("alerts")
   @@index([deviceId, status])
+  @@index([level])
+  @@index([status])
   @@index([triggeredAt])
+  @@index([acknowledgedBy])
 }
 
 /// 告警级别枚举

@@ -1,0 +1,41 @@
+{
+  "server": {
+    "cors": {
+      "origin": ["https://fountain.top", "https://iot.fountain.top"]
+    }
+  },
+  "database": {
+    "url": "postgresql://iot_user:CHANGE_ME_IN_PRODUCTION@postgres:5432/iot_platform",
+    "pool": {
+      "min": 5,
+      "max": 20
+    }
+  },
+  "mqtt": {
+    "options": {
+      "clientId": "iot-backend-prod"
+    }
+  },
+  "jwt": {
+    "secret": "CHANGE_ME_IN_PRODUCTION_SUPER_SECRET_JWT_KEY"
+  },
+  "rateLimit": {
+    "maxRequests": 100
+  },
+  "logging": {
+    "level": "warn",
+    "format": "json",
+    "output": "stdout"
+  },
+  "security": {
+    "sessionSecret": "CHANGE_ME_IN_PRODUCTION_SESSION_SECRET"
+  },
+  "features": {
+    "registration": false,
+    "emailVerification": true,
+    "twoFactorAuth": true
+  },
+  "alerts": {
+    "retentionDays": 90
+  }
+}

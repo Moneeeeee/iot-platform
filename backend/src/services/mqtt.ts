@@ -7,6 +7,7 @@ import mqtt, { MqttClient } from 'mqtt';
 import { EventEmitter } from 'events';
 import { logger } from '@/utils/logger';
 import { ProtocolType, DeviceData } from '@/types';
+import { configManager } from '@/config/config';
 
 /**
  * MQTT服务类
@@ -23,8 +24,9 @@ export class MQTTService extends EventEmitter {
    */
   public async initialize(): Promise<void> {
     try {
-      const brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883';
-      const clientId = process.env.MQTT_CLIENT_ID || 'iot-platform-gateway';
+      const mqttConfig = configManager.get('mqtt');
+      const brokerUrl = mqttConfig.broker;
+      const clientId = mqttConfig.options.clientId;
       const username = process.env.MQTT_USERNAME;
       const password = process.env.MQTT_PASSWORD;
 
@@ -32,7 +34,7 @@ export class MQTTService extends EventEmitter {
       const options: mqtt.IClientOptions = {
         clientId,
         clean: true,
-        connectTimeout: 30000,
+        connectTimeout: mqttConfig.options.connectTimeout,
         reconnectPeriod: this.reconnectInterval,
         username,
         password,

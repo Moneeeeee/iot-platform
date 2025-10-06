@@ -1,0 +1,42 @@
+# 开发环境覆盖配置
+# 使用 docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+version: '3.8'
+
+services:
+  # PostgreSQL 开发环境
+  postgres:
+    volumes:
+      # 开发环境使用基线配置
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+  # Redis 开发环境
+  redis:
+    volumes:
+      # 开发环境使用基线配置
+      - ./docker/redis/redis.conf:/etc/redis/redis.conf:ro
+    command: redis-server /etc/redis/redis.conf
+
+  # EMQX 开发环境
+  emqx:
+    volumes:
+      # 开发环境使用基线配置
+      - ./docker/emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+
+  # Backend 开发环境
+  backend:
+    environment:
+      - CONFIG_FILE=/app/config/config.json
+    volumes:
+      # 开发环境使用基线配置
+      - ./docker/backend/config.json:/app/config/config.json:ro
+
+  # Frontend 开发环境
+  frontend:
+    environment:
+      - CONFIG_FILE=/app/config/config.json
+    volumes:
+      # 开发环境使用基线配置
+      - ./docker/frontend/config.json:/app/config/config.json:ro

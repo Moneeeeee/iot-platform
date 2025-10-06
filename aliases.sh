@@ -39,8 +39,8 @@ alias iot-db='cd /opt/iot-platform && docker-compose exec postgres psql -U iot_u
 alias iot-db-devices='cd /opt/iot-platform && docker-compose exec postgres psql -U iot_user -d iot_platform -c "SELECT id, name, type, status FROM devices LIMIT 10;"'
 
 # 工具启动
-alias iot-manager='cd /opt/iot-platform && ./iot-manager.sh'
-alias iot-help='cd /opt/iot-platform && ./quick-commands.sh help'
+alias iot-cli='cd /opt/iot-platform && ./scripts/iot-cli.sh'
+alias iot-help='cd /opt/iot-platform && ./scripts/iot-cli.sh help'
 
 # 显示可用别名
 iot-aliases() {
@@ -80,8 +80,8 @@ iot-aliases() {
     echo "  iot-db-devices   - 查看设备列表"
     echo
     echo "工具:"
-    echo "  iot-manager      - 启动主管理工具"
-    echo "  iot-help         - 显示快速命令帮助"
+    echo "  iot-cli          - 启动现代化CLI工具"
+    echo "  iot-help         - 显示CLI帮助"
     echo "  iot-aliases      - 显示此别名列表"
 }
 

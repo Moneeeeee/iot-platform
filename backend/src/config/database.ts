@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { logger } from '@/utils/logger';
+import { configManager } from '@/config/config';
 
 /**
  * Prisma客户端实例
@@ -15,7 +16,14 @@ class DatabaseService {
   private prisma: PrismaClient;
 
   private constructor() {
+    const databaseConfig = configManager.get('database');
+    
     this.prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseConfig.url,
+        },
+      },
       log: [
         {
           emit: 'stdout',
