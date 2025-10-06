@@ -1,0 +1,28 @@
+{
+  "name": "powersafe-datacenter",
+  "version": "1.0.0",
+  "description": "PowerSafe 数据中心设备插件",
+  "author": "IoT Platform Team",
+  "className": "PowerSafeDatacenterPlugin",
+  "dependencies": [],
+  "config": {
+    "deviceType": "powersafe-datacenter",
+    "capabilities": [
+      "high-frequency-sampling",
+      "data-center-mode",
+      "redundant-power",
+      "environmental-monitoring"
+    ],
+    "telemetry": {
+      "samplingRate": 1000,
+      "batchSize": 50,
+      "compression": true
+    },
+    "thresholds": {
+      "voltage": { "min": 200, "max": 240 },
+      "current": { "min": 0, "max": 100 },
+      "power": { "min": 0, "max": 50000 },
+      "temperature": { "min": 0, "max": 60 }
+    }
+  }
+}

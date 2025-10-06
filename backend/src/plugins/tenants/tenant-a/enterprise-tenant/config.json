@@ -1,0 +1,24 @@
+{
+  "name": "enterprise-tenant",
+  "version": "1.0.0",
+  "description": "企业级租户定制化插件",
+  "author": "IoT Platform Team",
+  "className": "EnterpriseTenantPlugin",
+  "dependencies": [],
+  "config": {
+    "billing": {
+      "enabled": true,
+      "currency": "CNY",
+      "ratePerDevice": 10.0
+    },
+    "customApi": {
+      "enabled": true,
+      "endpoints": ["/api/enterprise/analytics", "/api/enterprise/reports"]
+    },
+    "policies": {
+      "maxDevices": 10000,
+      "maxUsers": 500,
+      "dataRetentionDays": 365
+    }
+  }
+}
