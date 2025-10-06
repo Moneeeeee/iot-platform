@@ -53,8 +53,6 @@ create_directories() {
     mkdir -p logs
     mkdir -p uploads
     mkdir -p nginx/ssl
-    mkdir -p docker/mosquitto/data
-    mkdir -p docker/mosquitto/log
     
     log_success "目录创建完成"
 }

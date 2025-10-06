@@ -1,0 +1,108 @@
+{
+  "deviceType": "powersafe",
+  "name": "PowerSafe智能电源安全设备",
+  "version": "1.0.0",
+  "description": "专业的智能电源安全监控设备，提供实时电源状态监测、异常预警、远程控制等功能",
+  "manufacturer": "IoT Platform",
+  "model": "PS-1000",
+  "capabilities": [
+    "voltage_monitoring",
+    "current_monitoring", 
+    "power_monitoring",
+    "frequency_monitoring",
+    "temperature_monitoring",
+    "remote_control",
+    "alarm_notification",
+    "data_logging",
+    "ups_management",
+    "energy_analysis"
+  ],
+  "protocols": [
+    "MQTT",
+    "HTTP",
+    "WebSocket",
+    "TCP",
+    "UDP"
+  ],
+  "communication": {
+    "wifi": true,
+    "ethernet": true,
+    "cellular": true,
+    "bluetooth": false
+  },
+  "power": {
+    "input_voltage": "220V AC",
+    "input_frequency": "50/60Hz",
+    "power_consumption": "<5W",
+    "backup_battery": "内置锂电池，断电后可工作4小时"
+  },
+  "environmental": {
+    "operating_temperature": "-20°C to +60°C",
+    "storage_temperature": "-40°C to +85°C",
+    "humidity": "10% to 90% RH (无冷凝)",
+    "protection_rating": "IP65"
+  },
+  "measurement": {
+    "voltage_range": "0-300V AC",
+    "current_range": "0-100A AC",
+    "power_range": "0-30kW",
+    "frequency_range": "45-65Hz",
+    "accuracy": "0.5级",
+    "sampling_rate": "1000Hz"
+  },
+  "features": {
+    "real_time_monitoring": true,
+    "anomaly_detection": true,
+    "remote_control": true,
+    "data_analysis": true,
+    "alarm_system": true,
+    "ups_integration": true,
+    "energy_management": true,
+    "report_generation": true
+  },
+  "alarms": {
+    "voltage_high": ">250V",
+    "voltage_low": "<180V",
+    "current_high": ">80A",
+    "power_high": ">25kW",
+    "frequency_high": ">55Hz",
+    "frequency_low": "<45Hz",
+    "temperature_high": ">50°C",
+    "communication_loss": ">30s"
+  },
+  "data_storage": {
+    "local_storage": "32GB",
+    "cloud_sync": true,
+    "retention_period": "1年",
+    "backup_frequency": "每小时"
+  },
+  "security": {
+    "encryption": "AES-256",
+    "authentication": "JWT Token",
+    "access_control": "基于角色的权限管理",
+    "audit_log": true
+  },
+  "integration": {
+    "apis": [
+      "REST API",
+      "GraphQL",
+      "WebSocket API"
+    ],
+    "protocols": [
+      "Modbus TCP",
+      "SNMP",
+      "BACnet"
+    ],
+    "platforms": [
+      "AWS IoT",
+      "Azure IoT",
+      "Google Cloud IoT"
+    ]
+  },
+  "maintenance": {
+    "firmware_update": "OTA远程更新",
+    "calibration": "自动校准",
+    "diagnostics": "自诊断功能",
+    "warranty": "3年质保"
+  }
+}

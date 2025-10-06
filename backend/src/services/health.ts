@@ -55,7 +55,7 @@ export class HealthService {
    */
   private initializeMQTT(): void {
     try {
-      const mqttUrl = process.env.MQTT_BROKER_URL || 'mqtt://mosquitto:1883';
+      const mqttUrl = process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883';
       
       this.mqttClient = mqtt.connect(mqttUrl, {
         clientId: 'health-check-client',

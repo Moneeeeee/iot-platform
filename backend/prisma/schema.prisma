@@ -82,6 +82,7 @@ enum DeviceType {
   SMART_SENSOR
   SMART_GATEWAY
   SMART_CONTROLLER
+  POWERSAFE
 
   @@map("device_type")
 }

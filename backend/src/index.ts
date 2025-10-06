@@ -29,6 +29,7 @@ import authRoutes from '@/routes/auth';
 import userRoutes from '@/routes/users';
 import deviceRoutes from '@/routes/devices';
 import systemRoutes from '@/routes/system';
+import powersafeRoutes from '@/routes/powersafe';
 
 // 导入服务
 import { MQTTService } from '@/services/mqtt';
@@ -115,8 +116,21 @@ class Application {
     // 请求压缩
     this.app.use(compression());
 
-    // 请求日志
-    this.app.use(morgan('combined', {
+    // 请求日志 - 使用中国时区
+    this.app.use(morgan((tokens, req, res) => {
+      const now = new Date();
+      const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+      const timestamp = chinaTime.toISOString().replace('T', ' ').replace('Z', '');
+      
+      return [
+        tokens.method(req, res),
+        tokens.url(req, res),
+        tokens.status(req, res),
+        tokens.res(req, res, 'content-length'), '-',
+        tokens['response-time'](req, res), 'ms',
+        `[${timestamp}]`
+      ].join(' ');
+    }, {
       stream: {
         write: (message: string) => {
           httpLogger.http(message.trim());
@@ -158,10 +172,14 @@ class Application {
         
         const overallStatus = dbHealth && healthCheck.overall === 'healthy' ? 'healthy' : 'unhealthy';
         
+        // 获取中国时区时间
+        const now = new Date();
+        const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+        
         res.status(overallStatus === 'healthy' ? 200 : 503).json({
           success: overallStatus === 'healthy',
           status: overallStatus,
-          timestamp: new Date(),
+          timestamp: chinaTime.toISOString(),
           services: {
             database: dbHealth ? 'up' : 'down',
             redis: healthCheck.services.redis.status,
@@ -178,10 +196,14 @@ class Application {
         });
       } catch (error) {
         logger.error('Health check failed:', error);
+        // 获取中国时区时间
+        const now = new Date();
+        const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+        
         res.status(503).json({
           success: false,
           status: 'unhealthy',
-          timestamp: new Date(),
+          timestamp: chinaTime.toISOString(),
           error: 'Health check failed',
         });
       }
@@ -192,6 +214,7 @@ class Application {
     this.app.use('/api/users', AuthMiddleware.authenticate, userRoutes);
     this.app.use('/api/devices', AuthMiddleware.authenticate, deviceRoutes);
     this.app.use('/api/system', AuthMiddleware.authenticate, systemRoutes);
+    this.app.use('/api/powersafe', powersafeRoutes);
 
     // 根路径
     this.app.get('/', (req, res) => {

@@ -42,10 +42,21 @@ try {
 }
 
 /**
+ * 获取中国时区时间戳
+ */
+const getChinaTimestamp = () => {
+  const now = new Date();
+  const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  return chinaTime.toISOString().replace('T', ' ').replace('Z', '').replace(/\.\d{3}/, '');
+};
+
+/**
  * 日志格式配置
  */
 const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.timestamp({ 
+    format: () => getChinaTimestamp()
+  }),
   winston.format.colorize({ all: true }),
   winston.format.printf(
     (info) => `${info.timestamp} ${info.level}: ${info.message}`
@@ -56,7 +67,9 @@ const logFormat = winston.format.combine(
  * 文件日志格式配置
  */
 const fileLogFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.timestamp({ 
+    format: () => getChinaTimestamp()
+  }),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
@@ -133,7 +146,9 @@ const logger = winston.createLogger({
 export const httpLogger = winston.createLogger({
   level: 'http',
   format: winston.format.combine(
-    winston.format.timestamp(),
+    winston.format.timestamp({ 
+      format: () => getChinaTimestamp()
+    }),
     winston.format.json()
   ),
   transports: [
@@ -211,11 +226,13 @@ export class Logger {
    * @param protocol 协议类型
    */
   static deviceData(deviceId: string, data: any, protocol: string): void {
+    const now = new Date();
+    const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     logger.info('Device Data Received', {
       deviceId,
       protocol,
       dataSize: JSON.stringify(data).length,
-      timestamp: new Date().toISOString(),
+      timestamp: chinaTime.toISOString(),
     });
   }
 
@@ -232,12 +249,14 @@ export class Logger {
     resource: string,
     resourceId?: string
   ): void {
+    const now = new Date();
+    const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     logger.info('User Action', {
       userId,
       action,
       resource,
       resourceId,
-      timestamp: new Date().toISOString(),
+      timestamp: chinaTime.toISOString(),
     });
   }
 
@@ -247,10 +266,12 @@ export class Logger {
    * @param details 事件详情
    */
   static systemEvent(event: string, details?: any): void {
+    const now = new Date();
+    const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     logger.info('System Event', {
       event,
       details,
-      timestamp: new Date().toISOString(),
+      timestamp: chinaTime.toISOString(),
     });
   }
 
@@ -267,12 +288,14 @@ export class Logger {
     level: string,
     message: string
   ): void {
+    const now = new Date();
+    const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
     logger.warn('Alert Triggered', {
       alertId,
       deviceId,
       level,
       message,
-      timestamp: new Date().toISOString(),
+      timestamp: chinaTime.toISOString(),
     });
   }
 }

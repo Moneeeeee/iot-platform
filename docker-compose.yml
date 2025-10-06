@@ -9,6 +9,7 @@ services:
       POSTGRES_DB: iot_platform
       POSTGRES_USER: iot_user
       POSTGRES_PASSWORD: iot_password
+      TZ: Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -23,6 +24,8 @@ services:
     image: redis:7-alpine
     container_name: iot-redis
     command: redis-server --appendonly yes
+    environment:
+      TZ: Asia/Shanghai
     volumes:
       - redis_data:/data
     ports:
@@ -45,6 +48,12 @@ services:
       - EMQX_LISTENERS__WSS__DEFAULT__BIND=0.0.0.0:8084
       - EMQX_LISTENERS__HTTP__DEFAULT__BIND=0.0.0.0:8081
       - EMQX_LISTENERS__HTTPS__DEFAULT__BIND=0.0.0.0:8089
+      # 允许匿名连接（开发环境）
+      - EMQX_AUTHENTICATION__ANONYMOUS__ENABLE=true
+      # 配置用户名密码认证
+      - EMQX_AUTHENTICATION__PASSWORD__ENABLE=true
+      - EMQX_AUTHENTICATION__PASSWORD__BACKEND=built_in_database
+      - TZ=Asia/Shanghai
     volumes:
       - emqx_data:/opt/emqx/data
       - emqx_log:/opt/emqx/log
@@ -81,6 +90,7 @@ services:
       - CORS_ORIGIN=http://localhost:3000,http://fountain.top
       - RATE_LIMIT_WINDOW_MS=900000
       - RATE_LIMIT_MAX_REQUESTS=100
+      - TZ=Asia/Shanghai
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -106,6 +116,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=
+      - TZ=Asia/Shanghai
     volumes:
       - ./frontend:/app
       - /app/node_modules

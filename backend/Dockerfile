@@ -4,7 +4,7 @@ FROM node:20-alpine
 # 设置工作目录
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖和时区数据
 RUN apk add --no-cache \
     python3 \
     make \
@@ -12,7 +12,12 @@ RUN apk add --no-cache \
     postgresql-client \
     openssl \
     openssl-dev \
-    curl
+    curl \
+    tzdata
+
+# 设置时区为中国时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 复制package.json和package-lock.json
 COPY package*.json ./

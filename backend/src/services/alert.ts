@@ -348,7 +348,7 @@ export class AlertService extends EventEmitter {
     try {
       const offlineDevices = await prisma.device.findMany({
         where: {
-          status: DeviceStatus.OFFLINE,
+          status: "OFFLINE",
           lastSeenAt: {
             lt: new Date(Date.now() - 5 * 60 * 1000), // 5分钟前
           },
@@ -497,7 +497,7 @@ export class AlertService extends EventEmitter {
 
       const result = await prisma.alert.deleteMany({
         where: {
-          status: AlertStatus.RESOLVED,
+          status: "RESOLVED",
           resolvedAt: {
             lt: cutoffDate,
           },
