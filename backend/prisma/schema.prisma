@@ -1,135 +1,227 @@
-// Prisma数据库模式文件
-// 定义IoT平台的数据模型
+// ==========================================
+// IoT 平台多租户模块化数据库模式 V2
+// 支持：多租户、设备模板、时序数据、OTA、冷热分层
+// ==========================================
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [timescaledb(schema: "public")]
 }
 
-// ==================== 用户相关模型 ====================
+// ==========================================
+// 多租户核心模型
+// ==========================================
 
-/// 用户表
+/// 租户表 - SaaS多租户隔离
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(50)
+  
+  config      Json     @default("{}")
+  plan        TenantPlan @default(BASIC)
+  status      TenantStatus @default(ACTIVE)
+  limits      Json     @default("{}")
+  
+  isolatedSchema Boolean @default(false) @map("isolated_schema")
+  schemaName     String?  @db.VarChar(50) @map("schema_name")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  
+  users              User[]
+  devices            Device[]
+  deviceTemplates    DeviceTemplate[]
+  firmwares          Firmware[]
+  retentionPolicies  RetentionPolicy[]
+  systemStats        SystemStats[]
+  
+  @@map("tenants")
+  @@index([slug])
+  @@index([status])
+}
+
+enum TenantPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  EXPIRED
+}
+
+// ==========================================
+// 用户与认证（多租户）
+// ==========================================
+
+/// 用户表 - 租户级用户管理
 model User {
   id           String   @id @default(cuid())
-  username     String   @unique @db.VarChar(50)
-  email        String   @unique @db.VarChar(255)
+  tenantId     String   @map("tenant_id")
+  
+  username     String   @db.VarChar(50)
+  email        String   @db.VarChar(255)
   passwordHash String   @map("password_hash") @db.VarChar(255)
+  
   role         UserRole   @default(VIEWER)
   permissions  String[]   @default([])
   language     Language   @default(ZH_CN)
+  
   isActive     Boolean    @default(true) @map("is_active")
   isDeleted    Boolean    @default(false) @map("is_deleted")
   lastLoginAt  DateTime?  @map("last_login_at")
+  
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
   deletedAt    DateTime?  @map("deleted_at")
-
-  // 关联关系
-  devices      Device[]
-  alerts       Alert[]
-  logs         Log[]
+  
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessions     UserSession[]
-  fileUploads  FileUpload[]
-
+  devices      Device[]
+  eventAlerts  EventAlert[]
+  logs         Log[]
+  
+  @@unique([tenantId, username])
+  @@unique([tenantId, email])
   @@map("users")
-  @@index([username])
-  @@index([email])
-  @@index([isActive])
-  @@index([isDeleted])
-  @@index([lastLoginAt])
+  @@index([tenantId, isActive])
+  @@index([tenantId, role])
 }
 
-/// 用户角色枚举
 enum UserRole {
   ADMIN
   OPERATOR
   VIEWER
+  DEVICE_MANAGER
+  OTA_MANAGER
 }
 
-/// 语言枚举
 enum Language {
   ZH_CN  @map("zh-CN")
   ZH_TW  @map("zh-TW")
   EN     @map("en")
-
-  @@map("language")
 }
 
-// ==================== 设备相关模型 ====================
+/// 用户会话表
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+  @@index([token])
+  @@index([expiresAt])
+}
 
-/// 设备表
+// ==========================================
+// 设备模板系统（核心扩展点）
+// ==========================================
+
+/// 设备模板表 - 定义设备类型、属性、遥测、指令
+model DeviceTemplate {
+  id          String     @id @default(cuid())
+  tenantId    String     @map("tenant_id")
+  
+  name        String     @db.VarChar(100)
+  type        String     @db.VarChar(50)
+  version     String     @db.VarChar(20) @default("1.0.0")
+  description String?    @db.Text
+  
+  attributes          Json @default("{}")
+  telemetryMetrics    Json @default("[]")
+  events              Json @default("[]")
+  commands            Json @default("[]")
+  firmwareConstraints Json @default("{}") @map("firmware_constraints")
+  
+  isActive    Boolean    @default(true) @map("is_active")
+  deprecated  Boolean    @default(false)
+  
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  devices     Device[]
+  
+  @@unique([tenantId, name, version])
+  @@map("device_templates")
+  @@index([tenantId, type])
+  @@index([tenantId, isActive])
+}
+
+// ==========================================
+// 设备管理（多租户 + 模板驱动）
+// ==========================================
+
+/// 设备表 - 基于模板的设备实例
 model Device {
-  id          String       @id @default(cuid())
-  slug        String       @unique @db.VarChar(100)
-  name        String       @db.VarChar(255)
-  type        DeviceType
-  status      DeviceStatus @default(OFFLINE)
-  config      Json         @default("{}")
-  capabilities String[]    @default([])
-  lastSeenAt  DateTime?    @map("last_seen_at")
-  isDeleted   Boolean      @default(false) @map("is_deleted")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  deletedAt   DateTime?    @map("deleted_at")
-
-  // 关联关系
-  userId      String       @map("user_id")
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  data        DeviceData[]
-  alerts      Alert[]
-  logs        Log[]
-
+  id             String       @id @default(cuid())
+  tenantId       String       @map("tenant_id")
+  userId         String?      @map("user_id")
+  templateId     String       @map("template_id")
+  
+  slug           String       @db.VarChar(100)
+  name           String       @db.VarChar(255)
+  
+  attributes     Json         @default("{}")
+  metadata       Json         @default("{}")
+  
+  status         DeviceStatus @default(OFFLINE)
+  lastSeenAt     DateTime?    @map("last_seen_at")
+  
+  protocol       ProtocolType @default(MQTT)
+  connectionInfo Json         @default("{}") @map("connection_info")
+  
+  isDeleted      Boolean      @default(false) @map("is_deleted")
+  deletedAt      DateTime?    @map("deleted_at")
+  
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User?            @relation(fields: [userId], references: [id])
+  template       DeviceTemplate   @relation(fields: [templateId], references: [id])
+  
+  telemetry      Telemetry[]
+  measurements   Measurement[]
+  statusHistory  DeviceStatusHistory[]
+  eventAlerts    EventAlert[]
+  firmwareStatus FirmwareUpdateStatus[]
+  logs           Log[]
+  
+  @@unique([tenantId, slug])
   @@map("devices")
-  @@index([userId])
-  @@index([type])
-  @@index([status])
-  @@index([isDeleted])
-  @@index([lastSeenAt])
-  @@index([createdAt])
+  @@index([tenantId, status])
+  @@index([tenantId, templateId])
+  @@index([tenantId, lastSeenAt])
+  @@index([tenantId, isDeleted])
 }
 
-/// 设备类型枚举
-enum DeviceType {
-  SMART_SENSOR
-  SMART_GATEWAY
-  SMART_CONTROLLER
-  POWERSAFE
-
-  @@map("device_type")
-}
-
-/// 设备状态枚举
 enum DeviceStatus {
   ONLINE
   OFFLINE
   ERROR
   MAINTENANCE
-
-  @@map("device_status")
+  PROVISIONING
+  DECOMMISSIONED
 }
 
-/// 设备数据表
-model DeviceData {
-  id        String   @id @default(cuid())
-  deviceId  String
-  data      Json
-  timestamp DateTime @default(now())
-  protocol  ProtocolType
-  source    String
-
-  // 关联关系
-  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-
-  @@map("device_data")
-  @@index([deviceId, timestamp])
-  @@index([timestamp])
-}
-
-/// 协议类型枚举
 enum ProtocolType {
   MQTT
   TCP
@@ -137,37 +229,108 @@ enum ProtocolType {
   HTTP
   HTTPS
   WEBSOCKET
+  COAP
+  LORAWAN
 }
 
-// ==================== 告警相关模型 ====================
+// ==========================================
+// 时序数据层（TimescaleDB Hypertable）
+// ==========================================
 
-/// 告警表
-model Alert {
+/// 遥测数据表 - 高频时序数据（Hypertable）
+model Telemetry {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  deviceId  String   @map("device_id")
+  
+  timestamp DateTime @default(now())
+  metrics   Json     @default("{}")
+  quality   DataQuality @default(GOOD)
+  
+  protocol  ProtocolType
+  source    String   @db.VarChar(100)
+  
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@map("telemetry")
+  @@index([tenantId, deviceId, timestamp(sort: Desc)])
+  @@index([timestamp])
+}
+
+enum DataQuality {
+  GOOD
+  UNCERTAIN
+  BAD
+  INTERPOLATED
+}
+
+/// 设备状态历史表 - 状态变更时序数据（Hypertable）
+model DeviceStatusHistory {
+  id        String       @id @default(cuid())
+  tenantId  String       @map("tenant_id")
+  deviceId  String       @map("device_id")
+  
+  timestamp DateTime     @default(now())
+  status    DeviceStatus
+  context   Json         @default("{}")
+  
+  device    Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@map("device_status_history")
+  @@index([tenantId, deviceId, timestamp(sort: Desc)])
+  @@index([timestamp])
+}
+
+/// 测量数据表 - 低频/一次性测量（非Hypertable）
+model Measurement {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  deviceId  String   @map("device_id")
+  
+  timestamp DateTime @default(now())
+  type      String   @db.VarChar(50)
+  value     Json
+  metadata  Json     @default("{}")
+  
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@map("measurements")
+  @@index([tenantId, deviceId, timestamp(sort: Desc)])
+  @@index([tenantId, type, timestamp(sort: Desc)])
+}
+
+// ==========================================
+// 事件与告警
+// ==========================================
+
+/// 事件告警表 - 设备事件与告警
+model EventAlert {
   id             String      @id @default(cuid())
-  deviceId       String
+  tenantId       String      @map("tenant_id")
+  deviceId       String      @map("device_id")
+  
+  eventType      String      @db.VarChar(50)
   level          AlertLevel
   status         AlertStatus @default(ACTIVE)
-  title          String
-  message        String
+  
+  title          String      @db.VarChar(255)
+  message        String      @db.Text
   data           Json        @default("{}")
-  triggeredAt    DateTime    @default(now())
-  resolvedAt     DateTime?
-  acknowledgedBy String?
-  acknowledgedAt DateTime?
-
-  // 关联关系
+  
+  triggeredAt    DateTime    @default(now()) @map("triggered_at")
+  resolvedAt     DateTime?   @map("resolved_at")
+  acknowledgedBy String?     @map("acknowledged_by")
+  acknowledgedAt DateTime?   @map("acknowledged_at")
+  
   device         Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  user           User?       @relation(fields: [acknowledgedBy], references: [id])
-
-  @@map("alerts")
-  @@index([deviceId, status])
-  @@index([level])
-  @@index([status])
-  @@index([triggeredAt])
-  @@index([acknowledgedBy])
+  acknowledgedByUser User?   @relation(fields: [acknowledgedBy], references: [id])
+  
+  @@map("event_alerts")
+  @@index([tenantId, deviceId, status])
+  @@index([tenantId, level, status])
+  @@index([tenantId, triggeredAt(sort: Desc)])
 }
 
-/// 告警级别枚举
 enum AlertLevel {
   INFO
   WARNING
@@ -175,126 +338,239 @@ enum AlertLevel {
   CRITICAL
 }
 
-/// 告警状态枚举
 enum AlertStatus {
   ACTIVE
+  ACKNOWLEDGED
   RESOLVED
   SUPPRESSED
 }
 
-// ==================== 系统相关模型 ====================
+// ==========================================
+// OTA 固件管理系统
+// ==========================================
 
-/// 系统配置表
+/// 固件仓库表 - 固件版本管理
+model Firmware {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  
+  name        String   @db.VarChar(100)
+  version     String   @db.VarChar(50)
+  channel     FirmwareChannel @default(STABLE)
+  
+  filename    String   @db.VarChar(255)
+  filepath    String   @db.VarChar(500)
+  size        BigInt
+  checksum    String   @db.VarChar(64)
+  
+  metadata    Json     @default("{}")
+  status      FirmwareStatus @default(DRAFT)
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rollouts    FirmwareRollout[]
+  
+  @@unique([tenantId, version])
+  @@map("firmwares")
+  @@index([tenantId, channel, status])
+  @@index([tenantId, version])
+}
+
+enum FirmwareChannel {
+  STABLE
+  BETA
+  ALPHA
+  CANARY
+}
+
+enum FirmwareStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+  ARCHIVED
+}
+
+/// 固件灰度发布表 - OTA 发布策略
+model FirmwareRollout {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  firmwareId  String   @map("firmware_id")
+  
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  
+  strategy    Json
+  status      RolloutStatus @default(DRAFT)
+  stats       Json     @default("{}")
+  
+  startedAt   DateTime? @map("started_at")
+  pausedAt    DateTime? @map("paused_at")
+  completedAt DateTime? @map("completed_at")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  firmware    Firmware @relation(fields: [firmwareId], references: [id], onDelete: Cascade)
+  updateStatuses FirmwareUpdateStatus[]
+  
+  @@map("firmware_rollouts")
+  @@index([tenantId, status])
+  @@index([tenantId, firmwareId])
+}
+
+enum RolloutStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ROLLBACK
+}
+
+/// 固件更新状态表 - 设备级 OTA 追踪
+model FirmwareUpdateStatus {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  deviceId    String   @map("device_id")
+  rolloutId   String   @map("rollout_id")
+  
+  status      UpdateStatus @default(PENDING)
+  progress    Int      @default(0)
+  error       String?  @db.Text
+  retryCount  Int      @default(0) @map("retry_count")
+  
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  rollout     FirmwareRollout @relation(fields: [rolloutId], references: [id], onDelete: Cascade)
+  
+  @@unique([deviceId, rolloutId])
+  @@map("firmware_update_status")
+  @@index([tenantId, rolloutId, status])
+  @@index([tenantId, deviceId, status])
+}
+
+enum UpdateStatus {
+  PENDING
+  SCHEDULED
+  DOWNLOADING
+  DOWNLOADED
+  INSTALLING
+  SUCCESS
+  FAILED
+  CANCELLED
+  ROLLBACK
+}
+
+// ==========================================
+// 数据保留策略
+// ==========================================
+
+/// 保留策略表 - 租户级数据生命周期管理
+model RetentionPolicy {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  
+  name        String   @db.VarChar(100)
+  dataType    DataType
+  tiers       Json
+  scope       Json     @default("{}")
+  
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, name])
+  @@map("retention_policies")
+  @@index([tenantId, dataType, isActive])
+}
+
+enum DataType {
+  TELEMETRY
+  DEVICE_STATUS
+  EVENTS
+  LOGS
+  MEASUREMENTS
+}
+
+// ==========================================
+// 系统管理
+// ==========================================
+
+/// 系统配置表（全局）
 model SystemConfig {
   id        String   @id @default(cuid())
-  key       String   @unique
+  key       String   @unique @db.VarChar(100)
   value     Json
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
+  
   @@map("system_configs")
 }
 
-/// 日志表
+/// 日志表（多租户）
 model Log {
   id        String   @id @default(cuid())
+  tenantId  String?  @map("tenant_id")
+  
   level     LogLevel
-  message   String
+  message   String   @db.Text
   data      Json?
-  userId    String?
-  deviceId  String?
+  
+  userId    String?  @map("user_id")
+  deviceId  String?  @map("device_id")
   timestamp DateTime @default(now())
-
-  // 关联关系
+  
   user      User?    @relation(fields: [userId], references: [id])
   device    Device?  @relation(fields: [deviceId], references: [id])
-
+  
   @@map("logs")
-  @@index([level, timestamp])
-  @@index([userId])
-  @@index([deviceId])
+  @@index([tenantId, level, timestamp(sort: Desc)])
+  @@index([tenantId, deviceId, timestamp(sort: Desc)])
 }
 
-/// 日志级别枚举
 enum LogLevel {
   ERROR
   WARN
   INFO
   DEBUG
+  TRACE
 }
 
-// ==================== 会话相关模型 ====================
+// ==========================================
+// 系统统计（多租户）
+// ==========================================
 
-/// 用户会话表
-model UserSession {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // 关联关系
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_sessions")
-  @@index([token])
-  @@index([expiresAt])
-}
-
-// ==================== 文件上传相关模型 ====================
-
-/// 文件上传表
-model FileUpload {
-  id          String   @id @default(cuid())
-  filename    String
-  originalName String
-  mimeType    String
-  size        Int
-  path        String
-  uploadedBy  String
-  createdAt   DateTime @default(now())
-
-  // 关联关系
-  user        User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
-
-  @@map("file_uploads")
-  @@index([uploadedBy])
-  @@index([createdAt])
-}
-
-// ==================== 设备模板相关模型 ====================
-
-/// 设备模板表
-model DeviceTemplate {
-  id          String     @id @default(cuid())
-  name        String
-  type        DeviceType
-  description String?
-  config      Json       @default("{}")
-  capabilities String[]  @default([])
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  @@map("device_templates")
-  @@index([type])
-}
-
-// ==================== 数据统计相关模型 ====================
-
-/// 系统统计表
+/// 系统统计表 - 每日统计快照
 model SystemStats {
-  id        String   @id @default(cuid())
-  date      DateTime @db.Date
-  totalUsers Int     @default(0)
-  totalDevices Int   @default(0)
-  onlineDevices Int  @default(0)
-  totalAlerts Int    @default(0)
-  activeAlerts Int   @default(0)
-  createdAt DateTime @default(now())
-
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  date          DateTime @db.Date
+  
+  totalUsers    Int      @default(0) @map("total_users")
+  totalDevices  Int      @default(0) @map("total_devices")
+  onlineDevices Int      @default(0) @map("online_devices")
+  totalAlerts   Int      @default(0) @map("total_alerts")
+  activeAlerts  Int      @default(0) @map("active_alerts")
+  
+  stats         Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, date])
   @@map("system_stats")
-  @@unique([date])
-  @@index([date])
+  @@index([tenantId, date(sort: Desc)])
 }

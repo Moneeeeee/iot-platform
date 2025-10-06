@@ -1,23 +1,31 @@
 version: '3.8'
 
 services:
-  # PostgreSQL 数据库
+  # PostgreSQL 数据库 + TimescaleDB 时序数据库扩展
   postgres:
-    image: postgres:15-alpine
+    image: timescale/timescaledb:latest-pg15
     container_name: iot-postgres
     environment:
       POSTGRES_DB: iot_platform
       POSTGRES_USER: iot_user
       POSTGRES_PASSWORD: iot_password
+      TIMESCALEDB_TELEMETRY: "off"
       TZ: Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./backend/prisma/migrations/v2-timescaledb-setup.sql:/docker-entrypoint-initdb.d/99-timescaledb-setup.sql:ro
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     ports:
       - "5432:5432"
     networks:
       - iot-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot_user -d iot_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Redis 缓存
   redis:
