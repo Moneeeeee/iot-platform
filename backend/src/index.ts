@@ -53,9 +53,14 @@ class Application {
     this.app = express();
     this.port = parseInt(process.env.PORT || '8000', 10);
     this.server = createServer(this.app);
+    // 解析允许的WebSocket origins
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+      : ['http://localhost:3000', 'http://fountain.top'];
+
     this.io = new SocketIOServer(this.server, {
       cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: allowedOrigins,
         methods: ['GET', 'POST'],
         credentials: true,
       },

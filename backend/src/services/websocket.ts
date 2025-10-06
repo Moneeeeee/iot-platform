@@ -41,10 +41,14 @@ export class WebSocketService extends EventEmitter {
       // 设置认证中间件
       this.io.use(this.authenticateSocket.bind(this));
 
-      // 设置连接事件监听器
+      // 设置默认命名空间连接事件监听器
       this.io.on('connection', this.handleConnection.bind(this));
 
-      logger.info('WebSocket service initialized');
+      // 同时支持 /socket.io/ 命名空间（兼容性）
+      this.io.of('/socket.io/').use(this.authenticateSocket.bind(this));
+      this.io.of('/socket.io/').on('connection', this.handleConnection.bind(this));
+
+      logger.info('WebSocket service initialized with default and /socket.io/ namespaces');
 
     } catch (error) {
       logger.error('Failed to initialize WebSocket service:', error);

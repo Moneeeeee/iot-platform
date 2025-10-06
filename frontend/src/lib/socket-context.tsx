@@ -18,11 +18,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated && token) {
-      const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || "", {
+      // 连接到默认命名空间，指定正确的路径
+      const newSocket = io("/", {
+        path: "/socket.io",
         auth: {
           token,
         },
-        transports: ["websocket"],
+        transports: ["websocket", "polling"],
+        timeout: 20000,
+        forceNew: true,
       });
 
       newSocket.on("connect", () => {
