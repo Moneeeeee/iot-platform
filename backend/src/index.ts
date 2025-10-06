@@ -85,7 +85,23 @@ class Application {
 
     // CORS配置
     this.app.use(cors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        // 允许的域名列表
+        const allowedOrigins = process.env.CORS_ORIGIN 
+          ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+          : ['http://localhost:3000'];
+        
+        // 允许没有origin的请求（如移动应用、Postman等）
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          // 记录被拒绝的origin用于调试
+          console.log(`CORS: Origin ${origin} not allowed. Allowed origins:`, allowedOrigins);
+          callback(null, false);
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

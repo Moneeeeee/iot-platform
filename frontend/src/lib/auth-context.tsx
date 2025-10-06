@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
-        api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+        apiClient.setAuthToken(savedToken);
       } catch (error) {
         console.error("Failed to restore auth state:", error);
         localStorage.removeItem("token");
@@ -53,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     try {
-      const response = await apiClient.post("/auth/login", { username, password });
-      const { user: userData, token: newToken } = response.data;
+      const response = await apiClient.post("/api/auth/login", { username, password });
+      const { user: userData, token: newToken } = response;
 
       setUser(userData);
       setToken(newToken);
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 设置API默认headers
       apiClient.setAuthToken(newToken);
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || "登录失败");
+      throw new Error(error.message || "登录失败");
     }
   };
 

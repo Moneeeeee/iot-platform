@@ -18,7 +18,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated && token) {
-      const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001", {
+      const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL || "", {
         auth: {
           token,
         },
