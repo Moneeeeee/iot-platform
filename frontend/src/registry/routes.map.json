@@ -1,0 +1,46 @@
+{
+  "schema": "v1",
+  "version": "1.0.0",
+  "routes": {
+    "home:index": "/",
+    "home:console": "/:tenant/console",
+    "home:about": "/about",
+    "home:login": "/login",
+    "home:register": "/register",
+    "home:forgot-password": "/forgot-password",
+    
+    "product:powersafe:index": "/:tenant/products/powersafe",
+    "product:powersafe:dashboard": "/:tenant/products/powersafe/dashboard",
+    "product:powersafe:devices": "/:tenant/products/powersafe/devices",
+    "product:powersafe:analytics": "/:tenant/products/powersafe/analytics",
+    
+    "device:smart-gateway:dashboard": "/:tenant/iot/smart-gateway/dashboard",
+    "device:smart-gateway:manager": "/:tenant/iot/smart-gateway/manager",
+    "device:smart-gateway:profile": "/:tenant/iot/smart-gateway/profile",
+    
+    "device:smart-controller:dashboard": "/:tenant/iot/smart-controller/dashboard",
+    "device:smart-controller:manager": "/:tenant/iot/smart-controller/manager",
+    "device:smart-controller:profile": "/:tenant/iot/smart-controller/profile",
+    
+    "device:smart-sensor:dashboard": "/:tenant/iot/smart-sensor/dashboard",
+    "device:smart-sensor:manager": "/:tenant/iot/smart-sensor/manager",
+    "device:smart-sensor:profile": "/:tenant/iot/smart-sensor/profile",
+    
+    "feature:ota:rollout": "/:tenant/ota/rollout",
+    "feature:ota:firmware": "/:tenant/ota/firmware",
+    "feature:ota:history": "/:tenant/ota/history",
+    
+    "feature:telemetry:dashboard": "/:tenant/telemetry/dashboard",
+    "feature:telemetry:realtime": "/:tenant/telemetry/realtime",
+    "feature:telemetry:history": "/:tenant/telemetry/history",
+    
+    "feature:alerts:dashboard": "/:tenant/alerts/dashboard",
+    "feature:alerts:rules": "/:tenant/alerts/rules",
+    "feature:alerts:history": "/:tenant/alerts/history",
+    
+    "tenant:settings": "/:tenant/settings",
+    "tenant:profile": "/:tenant/profile",
+    "tenant:users": "/:tenant/users",
+    "tenant:roles": "/:tenant/roles"
+  }
+}

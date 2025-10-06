@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/core/auth/context';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {

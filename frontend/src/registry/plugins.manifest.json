@@ -1,0 +1,191 @@
+{
+  "schema": "v1",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "id": "home",
+      "kind": "home",
+      "version": "1.0.0",
+      "name": "主页插件",
+      "description": "系统主页和控制台",
+      "routes": [
+        "home:index",
+        "home:console"
+      ],
+      "features": ["landing", "console"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["*"],
+        "features": ["*"]
+      }
+    },
+    {
+      "id": "product-powersafe",
+      "kind": "product",
+      "version": "1.0.0",
+      "name": "PowerSafe产品插件",
+      "description": "PowerSafe产品管理功能",
+      "routes": [
+        "product:powersafe:index",
+        "product:powersafe:dashboard",
+        "product:powersafe:devices",
+        "product:powersafe:analytics"
+      ],
+      "devices": ["powersafe"],
+      "features": ["telemetry", "ota", "alerts"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["powersafe"],
+        "devices": ["powersafe"],
+        "features": ["telemetry", "ota", "alerts"]
+      }
+    },
+    {
+      "id": "device-smart-gateway",
+      "kind": "device",
+      "version": "1.0.0",
+      "name": "智能网关设备插件",
+      "description": "智能网关设备管理功能",
+      "routes": [
+        "device:smart-gateway:dashboard",
+        "device:smart-gateway:manager",
+        "device:smart-gateway:profile"
+      ],
+      "features": ["telemetry", "alerts"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["smart-gateway"],
+        "features": ["telemetry", "alerts"]
+      }
+    },
+    {
+      "id": "device-smart-controller",
+      "kind": "device",
+      "version": "1.0.0",
+      "name": "智能控制器设备插件",
+      "description": "智能控制器设备管理功能",
+      "routes": [
+        "device:smart-controller:dashboard",
+        "device:smart-controller:manager",
+        "device:smart-controller:profile"
+      ],
+      "features": ["telemetry", "alerts"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["smart-controller"],
+        "features": ["telemetry", "alerts"]
+      }
+    },
+    {
+      "id": "device-smart-sensor",
+      "kind": "device",
+      "version": "1.0.0",
+      "name": "智能传感器设备插件",
+      "description": "智能传感器设备管理功能",
+      "routes": [
+        "device:smart-sensor:dashboard",
+        "device:smart-sensor:manager",
+        "device:smart-sensor:profile"
+      ],
+      "features": ["telemetry", "alerts"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["smart-sensor"],
+        "features": ["telemetry", "alerts"]
+      }
+    },
+    {
+      "id": "feature-ota",
+      "kind": "feature",
+      "version": "1.0.0",
+      "name": "OTA升级功能插件",
+      "description": "固件升级和OTA管理功能",
+      "routes": [
+        "feature:ota:rollout",
+        "feature:ota:firmware",
+        "feature:ota:history"
+      ],
+      "features": ["ota"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["*"],
+        "features": ["ota"]
+      }
+    },
+    {
+      "id": "feature-telemetry",
+      "kind": "feature",
+      "version": "1.0.0",
+      "name": "遥测数据功能插件",
+      "description": "设备遥测数据收集和分析功能",
+      "routes": [
+        "feature:telemetry:dashboard",
+        "feature:telemetry:realtime",
+        "feature:telemetry:history"
+      ],
+      "features": ["telemetry"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["*"],
+        "features": ["telemetry"]
+      }
+    },
+    {
+      "id": "feature-alerts",
+      "kind": "feature",
+      "version": "1.0.0",
+      "name": "告警管理功能插件",
+      "description": "设备告警和通知管理功能",
+      "routes": [
+        "feature:alerts:dashboard",
+        "feature:alerts:rules",
+        "feature:alerts:history"
+      ],
+      "features": ["alerts"],
+      "requires": {
+        "designSystem": "^1.0.0",
+        "api": "^1.0.0"
+      },
+      "supports": {
+        "tenants": ["*"],
+        "products": ["*"],
+        "devices": ["*"],
+        "features": ["alerts"]
+      }
+    }
+  ]
+}

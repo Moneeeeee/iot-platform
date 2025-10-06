@@ -1,0 +1,123 @@
+{
+  "schema": "v1",
+  "version": "1.0.0",
+  "tenants": [
+    {
+      "id": "default",
+      "name": "默认租户",
+      "description": "系统默认租户配置",
+      "theme": {
+        "mode": "light",
+        "primaryColor": "blue",
+        "brand": {
+          "logo": "default",
+          "name": "IoT Platform",
+          "favicon": "default"
+        }
+      },
+      "enabledPlugins": [
+        "home",
+        "product-powersafe",
+        "device-smart-gateway",
+        "device-smart-controller",
+        "device-smart-sensor",
+        "feature-ota",
+        "feature-telemetry",
+        "feature-alerts"
+      ],
+      "featureFlags": {
+        "ota": true,
+        "alerts": true,
+        "telemetry": true,
+        "analytics": true,
+        "multiDevice": true
+      },
+      "permissions": {
+        "roles": ["admin", "operator", "viewer"],
+        "defaultRole": "viewer"
+      },
+      "settings": {
+        "timezone": "Asia/Shanghai",
+        "language": "zh-CN",
+        "dateFormat": "YYYY-MM-DD",
+        "timeFormat": "24h"
+      }
+    },
+    {
+      "id": "tenant-a",
+      "name": "企业租户A",
+      "description": "企业级租户配置示例",
+      "theme": {
+        "mode": "dark",
+        "primaryColor": "green",
+        "brand": {
+          "logo": "tenant-a",
+          "name": "Enterprise A",
+          "favicon": "tenant-a"
+        }
+      },
+      "enabledPlugins": [
+        "home",
+        "product-powersafe",
+        "device-smart-gateway",
+        "feature-telemetry",
+        "feature-alerts"
+      ],
+      "featureFlags": {
+        "ota": true,
+        "alerts": true,
+        "telemetry": true,
+        "analytics": false,
+        "multiDevice": true
+      },
+      "permissions": {
+        "roles": ["admin", "operator", "viewer"],
+        "defaultRole": "operator"
+      },
+      "settings": {
+        "timezone": "Asia/Shanghai",
+        "language": "zh-CN",
+        "dateFormat": "YYYY-MM-DD",
+        "timeFormat": "24h"
+      }
+    },
+    {
+      "id": "tenant-b",
+      "name": "企业租户B",
+      "description": "另一个企业租户配置示例",
+      "theme": {
+        "mode": "light",
+        "primaryColor": "purple",
+        "brand": {
+          "logo": "tenant-b",
+          "name": "Enterprise B",
+          "favicon": "tenant-b"
+        }
+      },
+      "enabledPlugins": [
+        "home",
+        "device-smart-controller",
+        "device-smart-sensor",
+        "feature-ota",
+        "feature-telemetry"
+      ],
+      "featureFlags": {
+        "ota": true,
+        "alerts": false,
+        "telemetry": true,
+        "analytics": true,
+        "multiDevice": false
+      },
+      "permissions": {
+        "roles": ["admin", "viewer"],
+        "defaultRole": "viewer"
+      },
+      "settings": {
+        "timezone": "UTC",
+        "language": "en",
+        "dateFormat": "MM/DD/YYYY",
+        "timeFormat": "12h"
+      }
+    }
+  ]
+}

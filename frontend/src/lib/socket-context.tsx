@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
-import { useAuth } from "./auth-context";
+import { useAuth } from "@/core/auth/context";
 
 interface SocketContextType {
   socket: Socket | null;
@@ -14,10 +14,14 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined);
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { token, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
+      // 从localStorage获取token
+      const token = localStorage.getItem('iot_platform_access_token');
+      if (!token) return;
+
       // 连接到默认命名空间，指定正确的路径
       const newSocket = io("/", {
         path: "/socket.io",
