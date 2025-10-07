@@ -15,10 +15,11 @@ import {
   JwtPayload
 } from './types';
 import { User, LoginCredentials } from '@/types/contracts';
+import { configManager } from '@/lib/config';
 
 // 默认配置
 const defaultConfig: AuthConfig = {
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  apiBaseUrl: configManager.getApiBaseUrl(),
   tokenStorageKey: 'iot_platform_access_token',
   refreshTokenStorageKey: 'iot_platform_refresh_token',
   tokenRefreshThreshold: 300, // 5分钟
@@ -141,6 +142,12 @@ function createUserFromToken(payload: JwtPayload): User {
 export function AuthProvider({ children, config: userConfig }: AuthProviderProps) {
   const config = { ...defaultConfig, ...userConfig };
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const [mounted, setMounted] = useState(false);
+
+  // 标记组件已挂载（避免hydration不匹配）
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 从localStorage获取Token
   const getStoredTokens = useCallback((): TokenInfo | null => {
@@ -383,11 +390,8 @@ export function AuthProvider({ children, config: userConfig }: AuthProviderProps
 
   // 初始化认证状态
   useEffect(() => {
-    // 只在客户端执行
-    if (typeof window === 'undefined') {
-      dispatch({ type: 'AUTH_LOGOUT' });
-      return;
-    }
+    // 只在组件挂载后执行（避免hydration不匹配）
+    if (!mounted) return;
 
     const initializeAuth = async () => {
       const tokenInfo = getStoredTokens();
@@ -414,11 +418,11 @@ export function AuthProvider({ children, config: userConfig }: AuthProviderProps
     };
 
     initializeAuth();
-  }, [getStoredTokens, refreshToken]);
+  }, [mounted, getStoredTokens, refreshToken]);
 
   // 自动刷新Token
   useEffect(() => {
-    if (!state.isAuthenticated || typeof window === 'undefined') return;
+    if (!mounted || !state.isAuthenticated) return;
 
     const tokenInfo = getStoredTokens();
     if (!tokenInfo) return;

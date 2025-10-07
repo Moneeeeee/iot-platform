@@ -65,7 +65,7 @@ export class AuthService {
       return this.authenticateUser(token);
     }
 
-    throw new AppError(401, 'Authentication required');
+    throw new AppError('Authentication required', 401);
   }
 
   /**
@@ -81,7 +81,7 @@ export class AuthService {
       });
 
       if (!user || !user.isActive) {
-        throw new AppError(401, 'Invalid user');
+        throw new AppError('Invalid user', 401);
       }
 
       const tenant = await this.getTenantInfo(user.tenantId);
@@ -94,7 +94,7 @@ export class AuthService {
         expiresAt: new Date(decoded.exp * 1000)
       };
     } catch (error) {
-      throw new AppError(401, 'Invalid token');
+      throw new AppError('Invalid token', 401);
     }
   }
 
@@ -111,7 +111,7 @@ export class AuthService {
       });
 
       if (!device || device.isDeleted) {
-        throw new AppError(401, 'Invalid device');
+        throw new AppError('Invalid device', 401);
       }
 
       const tenant = await this.getTenantInfo(device.tenantId);
@@ -125,7 +125,7 @@ export class AuthService {
         expiresAt: new Date(decoded.exp * 1000)
       };
     } catch (error) {
-      throw new AppError(401, 'Invalid device token');
+      throw new AppError('Invalid device token', 401);
     }
   }
 
@@ -139,7 +139,7 @@ export class AuthService {
     });
 
     if (!apiKeyRecord || !apiKeyRecord.isActive) {
-      throw new AppError(401, 'Invalid API key');
+      throw new AppError('Invalid API key', 401);
     }
 
     const tenant = await this.getTenantInfo(apiKeyRecord.tenantId);
@@ -166,7 +166,7 @@ export class AuthService {
     });
 
     if (!tenant || tenant.status !== 'ACTIVE') {
-      throw new AppError(403, 'Tenant not active');
+      throw new AppError('Tenant not active', 403);
     }
 
     const tenantInfo: TenantInfo = {

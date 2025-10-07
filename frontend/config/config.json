@@ -1,0 +1,22 @@
+{
+  "api": {
+    "baseUrl": "http://localhost:8000",
+    "timeout": 10000
+  },
+  "app": {
+    "name": "IoT设备管理平台",
+    "version": "1.7.0",
+    "environment": "development"
+  },
+  "features": {
+    "darkMode": true,
+    "realTimeUpdates": true,
+    "deviceManagement": true,
+    "dataVisualization": true
+  },
+  "ui": {
+    "theme": "light",
+    "language": "zh-CN",
+    "pageSize": 20
+  }
+}

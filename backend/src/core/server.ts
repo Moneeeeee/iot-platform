@@ -289,7 +289,13 @@ export class IoTPlatformServer {
     this.app.use('/api/', idempotencyService.idempotencyMiddleware());
 
     // 认证中间件（可选，某些路由需要）
-    this.app.use('/api/', authService.authenticateMiddleware());
+    this.app.use('/api/', (req, res, next) => {
+      // 排除认证路由
+      if (req.path.startsWith('/auth')) {
+        return next();
+      }
+      return authService.authenticateMiddleware()(req, res, next);
+    });
 
     // 静态文件服务
     this.app.use('/uploads', express.static('uploads'));

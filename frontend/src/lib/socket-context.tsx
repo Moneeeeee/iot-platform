@@ -12,15 +12,22 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export function SocketProvider({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const { isAuthenticated } = useAuth();
 
+  // 标记组件已挂载（避免hydration不匹配）
   useEffect(() => {
-    if (isAuthenticated) {
-      // 从localStorage获取token
-      const token = localStorage.getItem('iot_platform_access_token');
-      if (!token) return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return;
+    
+    // 从localStorage获取token
+    const token = localStorage.getItem('iot_platform_access_token');
+    if (!token) return;
 
       // 连接到后端WebSocket服务
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8000';
@@ -57,7 +64,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         setIsConnected(false);
       };
     }
-  }, [isAuthenticated]);
+  }, [mounted, isAuthenticated]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

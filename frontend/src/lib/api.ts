@@ -6,6 +6,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { storage } from './utils';
 import { ApiResponse, PaginatedResponse } from '@/types';
+import { configManager } from './config';
 
 /**
  * API客户端类
@@ -15,11 +16,11 @@ class ApiClient {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || '';
+    this.baseURL = configManager.getApiBaseUrl();
     
     this.instance = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000,
+      timeout: configManager.getApiTimeout(),
       headers: {
         'Content-Type': 'application/json',
       },

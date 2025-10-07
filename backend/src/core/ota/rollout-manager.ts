@@ -84,11 +84,11 @@ export class RolloutManager {
     });
 
     if (!firmware || firmware.tenantId !== tenantId) {
-      throw new AppError(404, 'Firmware not found');
+      throw new AppError('Firmware not found', 404);
     }
 
     if (firmware.status !== 'PUBLISHED') {
-      throw new AppError(400, 'Firmware is not published');
+      throw new AppError('Firmware is not published', 400);
     }
 
     // 创建发布记录
@@ -126,18 +126,18 @@ export class RolloutManager {
     });
 
     if (!rollout || rollout.tenantId !== tenantId) {
-      throw new AppError(404, 'Rollout not found');
+      throw new AppError('Rollout not found', 404);
     }
 
     if (rollout.status !== 'DRAFT' && rollout.status !== 'PAUSED') {
-      throw new AppError(400, `Cannot start rollout in ${rollout.status} status`);
+      throw new AppError(`Cannot start rollout in ${rollout.status} status`, 400);
     }
 
     // 筛选目标设备
     const targetDevices = await this.selectTargetDevices(tenantId, rollout.strategy as RolloutStrategy);
 
     if (targetDevices.length === 0) {
-      throw new AppError(400, 'No devices match the rollout criteria');
+      throw new AppError('No devices match the rollout criteria', 400);
     }
 
     // 应用百分比限制
@@ -203,11 +203,11 @@ export class RolloutManager {
     });
 
     if (!rollout || rollout.tenantId !== tenantId) {
-      throw new AppError(404, 'Rollout not found');
+      throw new AppError('Rollout not found', 404);
     }
 
     if (rollout.status !== 'ACTIVE') {
-      throw new AppError(400, 'Rollout is not active');
+      throw new AppError('Rollout is not active', 400);
     }
 
     await prisma.firmwareRollout.update({
@@ -231,11 +231,11 @@ export class RolloutManager {
     });
 
     if (!rollout || rollout.tenantId !== tenantId) {
-      throw new AppError(404, 'Rollout not found');
+      throw new AppError('Rollout not found', 404);
     }
 
     if (rollout.status !== 'PAUSED') {
-      throw new AppError(400, 'Rollout is not paused');
+      throw new AppError('Rollout is not paused', 400);
     }
 
     await prisma.firmwareRollout.update({
@@ -260,7 +260,7 @@ export class RolloutManager {
     });
 
     if (!rollout || rollout.tenantId !== tenantId) {
-      throw new AppError(404, 'Rollout not found');
+      throw new AppError('Rollout not found', 404);
     }
 
     // 取消所有待处理的更新
@@ -527,14 +527,14 @@ export class RolloutManager {
     });
 
     if (!rollout || rollout.tenantId !== tenantId) {
-      throw new AppError(404, 'Rollout not found');
+      throw new AppError('Rollout not found', 404);
     }
 
     const strategy = rollout.strategy as RolloutStrategy;
     const stats = rollout.stats as RolloutStats;
 
     if (!strategy.increments || strategy.increments.length === 0) {
-      throw new AppError(400, 'No increments defined for this rollout');
+      throw new AppError('No increments defined for this rollout', 400);
     }
 
     // 找到当前阶段
@@ -542,7 +542,7 @@ export class RolloutManager {
     const nextIncrement = strategy.increments.find((inc) => inc > currentPercentage);
 
     if (!nextIncrement) {
-      throw new AppError(400, 'Already at final increment');
+      throw new AppError('Already at final increment', 400);
     }
 
     // 选择更多设备

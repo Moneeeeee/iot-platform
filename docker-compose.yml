@@ -76,14 +76,14 @@ services:
     environment:
       - NODE_ENV=development
       - TZ=Asia/Shanghai
-      # 使用配置文件
-      - CONFIG_FILE=/app/config/config.json
+      # CORS配置
+      - CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ./uploads:/app/uploads
-      # 使用配置文件
-      - ./docker/backend/config.json:/app/config/config.json:ro
+      # 挂载配置文件
+      - ./docker/config:/app/config:ro
     user: "1001:1001"
     ports:
       - "8000:8000"
@@ -105,12 +105,14 @@ services:
       dockerfile: Dockerfile
     container_name: iot-frontend
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - TZ=Asia/Shanghai
     volumes:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
+      # 挂载配置文件
+      - ./frontend/config:/app/config:ro
     ports:
       - "3000:3000"
     depends_on:

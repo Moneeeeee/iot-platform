@@ -1,91 +1,176 @@
-# 生产环境配置
-# 使用 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
-
 version: '3.8'
 
 services:
-  # PostgreSQL 生产环境
+  # PostgreSQL 数据库 + TimescaleDB 时序数据库扩展
   postgres:
+    image: timescale/timescaledb:latest-pg15
     container_name: iot-postgres-prod
     environment:
-      POSTGRES_PASSWORD: CHANGE_ME_IN_PRODUCTION
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure-production-password}
+      TIMESCALEDB_TELEMETRY: "off"
+      TZ: Asia/Shanghai
     volumes:
-      # 生产环境使用覆盖配置
+      - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
-      - ./docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./backend/prisma/migrations/v2-timescaledb-setup.sql:/docker-entrypoint-initdb.d/99-timescaledb-setup.sql:ro
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
+    ports:
+      - "5432:5432"
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot_user -d iot_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Redis 生产环境
+  # Redis 缓存
   redis:
+    image: redis:7-alpine
     container_name: iot-redis-prod
+    environment:
+      TZ: Asia/Shanghai
     volumes:
-      # 生产环境使用覆盖配置
-      - ./docker/redis/redis.prod.conf:/etc/redis/redis.conf:ro
-    command: redis-server /etc/redis/redis.conf
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
+      - redis_data:/data
+      - ./docker/redis/redis.prod.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "6379:6379"
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # EMQX 生产环境
+  # EMQX MQTT 消息代理
   emqx:
+    image: emqx/emqx:5.3.0
     container_name: iot-emqx-prod
+    environment:
+      - EMQX_NAME=iot-emqx
+      - EMQX_HOST=iot-emqx
+      - EMQX_CLUSTER__DISCOVERY_STRATEGY=static
+      - EMQX_CLUSTER__STATIC__SEEDS=iot-emqx@iot-emqx
+      - EMQX_LOG__LEVEL=warn
+      - EMQX_LOG__FILE_HANDLERS__DEFAULT__LEVEL=warn
+      - EMQX_LOG__FILE_HANDLERS__DEFAULT__FILE=log/emqx.log
+      - EMQX_LOG__FILE_HANDLERS__DEFAULT__ROTATION__ENABLE=true
+      - EMQX_LOG__FILE_HANDLERS__DEFAULT__ROTATION__MAX_FILES=10
+      - EMQX_LOG__FILE_HANDLERS__DEFAULT__ROTATION__MAX_SIZE=50MB
+      - EMQX_DASHBOARD__DEFAULT_USERNAME=admin
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=${EMQX_PASSWORD:-secure-emqx-password}
+      - EMQX_AUTHENTICATION__1__MECHANISM=password_based
+      - EMQX_AUTHENTICATION__1__BACKEND=built_in_database
+      - EMQX_AUTHENTICATION__1__USER_ID_TYPE=username
+      - EMQX_AUTHENTICATION__1__PASSWORD_HASH_ALGORITHM=sha256
+      - TZ=Asia/Shanghai
     volumes:
-      # 生产环境使用覆盖配置
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
       - ./docker/emqx/emqx.prod.conf:/opt/emqx/etc/emqx.conf:ro
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "8084:8084"
+      - "8883:8883"
+      - "18083:18083"
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18083/api/v5/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  # Backend 生产环境
+  # 后端服务
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: iot-backend-prod
     environment:
       - NODE_ENV=production
-      - CONFIG_FILE=/app/config/config.prod.json
+      - TZ=Asia/Shanghai
+      # CORS配置
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://yourdomain.com}
+      # 数据库配置
+      - DB_PASSWORD=${DB_PASSWORD:-secure-production-password}
+      # Redis配置
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-secure-redis-password}
+      # MQTT配置
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-secure-mqtt-password}
+      # JWT配置
+      - JWT_SECRET=${JWT_SECRET:-super-secure-production-secret-key}
     volumes:
-      # 生产环境使用覆盖配置
-      - ./docker/backend/config.prod.json:/app/config/config.prod.json:ro
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.5'
+      - ./backend:/app
+      - /app/node_modules
+      - ./uploads:/app/uploads
+      # 挂载配置文件
+      - ./docker/config:/app/config:ro
+    user: "1001:1001"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      emqx:
+        condition: service_healthy
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  # Frontend 生产环境
+  # 前端服务
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: iot-frontend-prod
     environment:
       - NODE_ENV=production
-      - CONFIG_FILE=/app/config/config.json
+      - TZ=Asia/Shanghai
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     volumes:
-      # 生产环境使用基线配置（前端配置相对简单）
-      - ./docker/frontend/config.json:/app/config/config.json:ro
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    user: "1001:1001"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  emqx_data:
+    driver: local
+  emqx_log:
+    driver: local
+
+networks:
+  iot-network:
+    driver: bridge

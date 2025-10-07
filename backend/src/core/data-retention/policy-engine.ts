@@ -201,14 +201,14 @@ export class RetentionPolicyEngine {
 
     const policy = await this.getPolicyForData(tenantId, dataType as any);
     if (!policy) {
-      throw new AppError(404, 'No retention policy found');
+      throw new AppError('No retention policy found', 404);
     }
 
     const tiers = policy.tiers as RetentionTiers;
     const tierConfig = tiers[tier];
 
     if (!tierConfig) {
-      throw new AppError(400, `Tier ${tier} not configured`);
+      throw new AppError(`Tier ${tier} not configured`, 400);
     }
 
     // 计算迁移时间范围
@@ -240,7 +240,7 @@ export class RetentionPolicyEngine {
 
   private static validateTiers(tiers: RetentionTiers): void {
     if (!tiers.hot && !tiers.warm && !tiers.cold && !tiers.archive) {
-      throw new AppError(400, 'At least one tier must be defined');
+      throw new AppError('At least one tier must be defined', 400);
     }
 
     // 验证持续时间格式
@@ -254,7 +254,7 @@ export class RetentionPolicyEngine {
   private static parseDuration(duration: string): Date {
     const match = duration.match(/^(\d+)(d|w|m|y)$/);
     if (!match) {
-      throw new AppError(400, `Invalid duration format: ${duration}`);
+      throw new AppError(`Invalid duration format: ${duration}`, 400);
     }
 
     const value = parseInt(match[1], 10);

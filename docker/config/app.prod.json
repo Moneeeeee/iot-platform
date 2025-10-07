@@ -1,0 +1,38 @@
+{
+  "server": {
+    "port": 8000,
+    "host": "0.0.0.0"
+  },
+  "cors": {
+    "origin": ["https://yourdomain.com", "https://www.yourdomain.com"],
+    "credentials": true,
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allowedHeaders": ["Content-Type", "Authorization", "X-Requested-With"]
+  },
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "database": "iot_platform",
+    "username": "iot_user",
+    "password": "secure-production-password"
+  },
+  "redis": {
+    "host": "redis",
+    "port": 6379,
+    "password": "secure-redis-password"
+  },
+  "mqtt": {
+    "host": "emqx",
+    "port": 1883,
+    "username": "mqtt_user",
+    "password": "secure-mqtt-password"
+  },
+  "jwt": {
+    "secret": "super-secure-production-secret-key",
+    "expiresIn": "1h"
+  },
+  "logging": {
+    "level": "warn",
+    "file": "logs/app.log"
+  }
+}

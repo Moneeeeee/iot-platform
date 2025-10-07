@@ -205,13 +205,19 @@ export function ThemeProvider({
   enableSystem = true,
   disableTransitionOnChange = false
 }: ThemeProviderProps) {
+  const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<ThemeConfig>(userDefaultTheme || defaultTheme);
   const [mode, setMode] = useState<ThemeMode>(defaultMode);
   const [systemTheme, setSystemTheme] = useState<ThemeMode>('light');
 
+  // 标记组件已挂载（避免hydration不匹配）
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // 检测系统主题
   useEffect(() => {
-    if (!enableSystem) return;
+    if (!mounted || !enableSystem) return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const updateSystemTheme = () => {
@@ -221,11 +227,11 @@ export function ThemeProvider({
     updateSystemTheme();
     mediaQuery.addEventListener('change', updateSystemTheme);
     return () => mediaQuery.removeEventListener('change', updateSystemTheme);
-  }, [enableSystem]);
+  }, [mounted, enableSystem]);
 
   // 从存储加载主题
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!mounted) return;
 
     try {
       const stored = localStorage.getItem(storageKey);
@@ -237,7 +243,7 @@ export function ThemeProvider({
     } catch (error) {
       console.error('Failed to load theme from storage:', error);
     }
-  }, [storageKey, defaultTheme, defaultMode]);
+  }, [mounted, storageKey, defaultTheme, defaultMode]);
 
   // 保存主题到存储
   const saveTheme = useCallback((newTheme: ThemeConfig, newMode: ThemeMode) => {

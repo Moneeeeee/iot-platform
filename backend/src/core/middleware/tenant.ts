@@ -93,7 +93,7 @@ export class TenantMiddleware {
       const user = (req as any).user;
       
       if (!user || !user.tenantId) {
-        throw new AppError(401, 'Tenant information not found in token');
+        throw new AppError('Tenant information not found in token', 401);
       }
 
       const tenantId = user.tenantId;
@@ -119,11 +119,11 @@ export class TenantMiddleware {
         });
 
         if (!dbTenant) {
-          throw new AppError(404, 'Tenant not found');
+          throw new AppError('Tenant not found', 404);
         }
 
         if (dbTenant.status !== 'ACTIVE') {
-          throw new AppError(403, `Tenant is ${dbTenant.status.toLowerCase()}`);
+          throw new AppError(`Tenant is ${dbTenant.status.toLowerCase()}`, 403);
         }
 
         tenant = {
@@ -175,7 +175,7 @@ export class TenantMiddleware {
       try {
         const tenant = req.tenant;
         if (!tenant) {
-          throw new AppError(401, 'Tenant not authenticated');
+          throw new AppError('Tenant not authenticated', 401);
         }
 
         const limits = tenant.limits;
