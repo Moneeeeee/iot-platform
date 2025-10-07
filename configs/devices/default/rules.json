@@ -1,0 +1,11 @@
+{
+  "rules": [
+    {
+      "name": "HighTemp",
+      "expr": "temp_c != null && temp_c > 60",
+      "actions": [
+        { "type": "alert", "level": "critical", "message": "Overheat ${temp_c}C" }
+      ]
+    }
+  ]
+}

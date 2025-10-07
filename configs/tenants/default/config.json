@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "quotas": { "devices": 200, "tps": 1500, "storage_gb": 20 },
+  "retention": { "telemetry_days": 180, "compression_after_days": 7 },
+  "locale": { "timezone": "Asia/Tokyo", "units": { "temp": "C", "speed": "kmh" } },
+  "mqtt": { "topic_prefix": "tenant/default" },
+  "webhooks": [
+    { "name": "alert", "url": "https://example.com/hook", "auth": "Bearer token", "enabled": false }
+  ],
+  "features": { "ota": true, "advanced_dashboard": false, "pii_masking": "email" }
+}

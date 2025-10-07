@@ -1,6 +1,10 @@
 node_modules
 .DS_Store
+.env
+secrets/
 coverage
+backend/dist
+frontend/.next
 *.log
 .cache
 

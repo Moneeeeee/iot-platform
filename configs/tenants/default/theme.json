@@ -1,0 +1,9 @@
+{
+  "logo": "/logos/default.svg",
+  "palette": { "primary": "#2563eb", "background": "#0f172a" },
+  "menu": [
+    { "path": "/dashboard", "label": "总览", "roles": ["admin","viewer"] },
+    { "path": "/devices", "label": "设备", "roles": ["admin","ops"] },
+    { "path": "/ota", "label": "OTA", "roles": ["admin"], "enabled": true }
+  ]
+}

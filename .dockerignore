@@ -1,5 +1,7 @@
-node_modules
 .git
+node_modules
+secrets
+.env
 frontend/.next
 backend/dist
 

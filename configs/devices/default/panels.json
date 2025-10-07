@@ -1,0 +1,9 @@
+{
+  "dashboard": [
+    { "type": "stat", "title": "Temperature", "from": "telemetry.temp_c", "agg": "last" },
+    { "type": "chart", "title": "Temp & Hum", "series": [
+      { "field": "temp_c", "label": "Temp" },
+      { "field": "hum_pct", "label": "Hum" }
+    ], "bucket": "5m", "range": "24h" }
+  ]
+}

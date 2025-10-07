@@ -4,6 +4,9 @@ set -euo pipefail
 # ==== 根目录文件 ====
 touch .gitignore .env.example README.md LICENSE package.json pnpm-workspace.yaml turbo.json docker-compose.yml .dockerignore
 
+# ==== 生产环境 Secrets 目录 ====
+# 开发阶段不需要 secrets 目录，生产环境使用 K8s/Swarm secrets
+
 # ==== 全局脚本 ====
 mkdir -p scripts
 touch scripts/init-db.sh scripts/seed.sh scripts/create-tenant.sh scripts/create-device-type.sh \

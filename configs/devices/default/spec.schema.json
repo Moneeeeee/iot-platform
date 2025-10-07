@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Default Telemetry",
+  "type": "object",
+  "properties": {
+    "temp_c": { "type": "number" },
+    "hum_pct": { "type": "number" },
+    "ts": { "type": "string", "format": "date-time" }
+  },
+  "required": ["ts"]
+}

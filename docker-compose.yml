@@ -1,0 +1,148 @@
+networks:
+  app:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  emqxdata:
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: iot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iotpass}   # 开发用 .env 注入；生产改用 K8s Secret
+      POSTGRES_DB: iotdb
+    command: 
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
+      - "-c"
+      - "port=5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [app]
+
+  redis:
+    image: redis:7-alpine
+    container_name: iot-redis
+    restart: unless-stopped
+    # 生产建议在 overrides 中启用 requirepass
+    command: ["redis-server", "--appendonly", "no"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks: [app]
+
+  emqx:
+    image: emqx/emqx:5.4
+    container_name: iot-emqx
+    restart: unless-stopped
+    environment:
+      # Node 配置
+      EMQX_NODE__COOKIE: changeme-cookie
+      EMQX_NODE__NAME: emqx@127.0.0.1
+
+      # 正确的监听配置（EMQX 5.4）
+      EMQX_LISTENERS__TCP__DEFAULT__BIND: 0.0.0.0:1883
+      EMQX_LISTENERS__WS__DEFAULT__BIND: 0.0.0.0:8083
+
+      # Dashboard 监听结构必须写完整
+      EMQX_DASHBOARD__LISTENERS__HTTP__BIND: 0.0.0.0:18083
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+    volumes:
+      - emqxdata:/opt/emqx/data
+      - ./docker/emqx/emqx.conf.yaml:/opt/emqx/etc/emqx.conf.yaml:ro
+    healthcheck:
+      # 双路兜底：emqx ping 成功则过，否则探测 1883 端口
+      test: ["CMD-SHELL", "emqx ping 2>/dev/null | grep -q pong || (</dev/tcp/127.0.0.1/1883) >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks: [app]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot-backend
+    restart: unless-stopped
+    env_file:
+      - .env                     # 小而频繁开关 & 连接串由此注入
+    environment:
+      DATA_PROFILE: ${DATA_PROFILE:-vanilla}     # 仅保留真正需要覆盖的开关
+      FRONTEND_ROUTER: ${FRONTEND_ROUTER:-app}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./docker/backend/config.yaml:/app/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz || curl -fsS http://localhost:8000/api/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 25
+    networks: [app]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iot-frontend
+    restart: unless-stopped
+    env_file:
+      - .env                     # Next.js 构建期变量（NEXT_PUBLIC_*）
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [app]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: iot-nginx
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks: [app]

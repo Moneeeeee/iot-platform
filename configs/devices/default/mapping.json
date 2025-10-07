@@ -1,0 +1,8 @@
+{
+  "ingest": [
+    { "from": "payload.temperature", "to": "temp_c", "transform": "round(x,1)" },
+    { "from": "payload.humidity", "to": "hum_pct", "transform": "round(x,1)" },
+    { "from": "meta.timestamp", "to": "ts" }
+  ],
+  "units": { "temp_c": "C", "hum_pct": "%" }
+}

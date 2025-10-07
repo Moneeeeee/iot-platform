@@ -1,0 +1,20 @@
+环境变量（ENV）：放短、小、敏感、会变的“运行时开关”和凭证（端口、profile、连接串、feature flag、日志级别……）。
+
+配置文件（挂载到容器）：放大、结构化、稳定的配置（Nginx、EMQX、Postgres、前端静态构建变量映射、你的设备/租户 seed 等）。
+
+1) 用 ENV（含 Docker/K8s Secret）
+   - PORT, NODE_ENV, DATA_PROFILE, FRONTEND_ROUTER
+   - DATABASE_URL, REDIS_URL, MQTT_BROKER_URL（prod 放 Secret）
+   - JWT_SECRET, ENCRYPTION_KEY（Secret）
+   - FEATURE_* 开关（布尔/小字符串）
+   - LOG_LEVEL, TRACING_* 等运维开关
+
+2) 用“配置文件 + 挂载”
+   - nginx.conf / emqx.conf / postgres.conf（第三方服务）
+   - backend 的 config.mapping.yaml（大段且稳定的结构化映射可选）
+   - 设备/租户 seed：`configs/**`（但运行时主数据放数据库）
+   - 前端静态资源、主题 tokens（非敏感）
+
+3) 永远不要放到镜像里（只挂载/Secret）
+   - 证书/私钥（nginx/ssl/**）
+   - 客户专属的私密配置

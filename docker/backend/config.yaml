@@ -1,0 +1,29 @@
+# Backend structured config (optional). Only fills gaps not provided by ENV.
+profiles:
+  data: vanilla           # vanilla|timescale
+  router: app             # app|pages
+
+security:
+  token_expires_in: 12h
+  cors_origin: http://localhost
+  public_origin: http://localhost
+
+realtime:
+  ws_path: /ws
+  mqtt:
+    url: mqtt://emqx:1883
+    username: iot
+    password_from_secret: /run/secrets/MQTT_PASSWORD
+
+features:
+  ota: true
+  rule_engine: true
+  aggregates: false
+
+metrics:
+  enabled: false
+  path: /metrics
+
+limits:
+  requests_per_minute: 1800
+  burst: 200
