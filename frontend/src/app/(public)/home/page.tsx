@@ -3,7 +3,12 @@
  * 从原有的page.tsx迁移过来
  */
 
-import { Metadata } from 'next';
+"use client";
+
+// 强制动态渲染，禁用静态预渲染
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import Link from 'next/link';
 import { 
   ArrowRight, 
@@ -15,12 +20,6 @@ import {
   Cloud,
   Lock
 } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: 'IoT设备管理平台 - 专业的物联网解决方案',
-  description: '提供完整的IoT设备管理、实时监控、数据分析和智能控制功能，支持MQTT、UDP、WebSocket等多种通信协议。',
-  keywords: 'IoT,物联网,设备管理,MQTT,实时监控,数据分析',
-};
 
 /**
  * 特性卡片组件
@@ -71,8 +70,11 @@ function StatCard({
 }
 
 export default function PublicHomePage() {
+  // 强制动态渲染，添加时间戳
+  const timestamp = Date.now();
+  
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white" data-timestamp={timestamp}>
       {/* 导航栏 */}
       <nav className="border-b bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -91,7 +93,7 @@ export default function PublicHomePage() {
                   关于我们
                 </Link>
                 <Link 
-                  href="/default/console" 
+                  href="/iot" 
                   className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   设备总览
@@ -121,7 +123,7 @@ export default function PublicHomePage() {
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
-                href="/default/console"
+                href="/iot"
                 className="rounded-md bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               >
                 查看设备
@@ -238,7 +240,7 @@ export default function PublicHomePage() {
                 </p>
                 <div className="mt-6">
                   <Link
-                    href="/default/iot/smart-sensor/profile"
+                    href="/iot/smart-sensor/profile"
                     className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
                     了解更多
@@ -260,7 +262,7 @@ export default function PublicHomePage() {
                 </p>
                 <div className="mt-6">
                   <Link
-                    href="/default/iot/smart-gateway/profile"
+                    href="/iot/smart-gateway/profile"
                     className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
                     了解更多
@@ -282,7 +284,7 @@ export default function PublicHomePage() {
                 </p>
                 <div className="mt-6">
                   <Link
-                    href="/default/iot/smart-controller/profile"
+                    href="/iot/smart-controller/profile"
                     className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
                   >
                     了解更多
@@ -331,9 +333,9 @@ export default function PublicHomePage() {
             <div>
               <h4 className="text-sm font-semibold text-white">产品</h4>
               <ul className="mt-2 space-y-2">
-                <li><Link href="/default/iot/smart-sensor/profile" className="text-sm text-gray-400 hover:text-white">智能传感器</Link></li>
-                <li><Link href="/default/iot/smart-gateway/profile" className="text-sm text-gray-400 hover:text-white">智能网关</Link></li>
-                <li><Link href="/default/iot/smart-controller/profile" className="text-sm text-gray-400 hover:text-white">智能控制器</Link></li>
+                <li><Link href="/iot/smart-sensor/profile" className="text-sm text-gray-400 hover:text-white">智能传感器</Link></li>
+                <li><Link href="/iot/smart-gateway/profile" className="text-sm text-gray-400 hover:text-white">智能网关</Link></li>
+                <li><Link href="/iot/smart-controller/profile" className="text-sm text-gray-400 hover:text-white">智能控制器</Link></li>
               </ul>
             </div>
             <div>

@@ -3,7 +3,8 @@
  * 展示公司信息、团队介绍和发展历程
  */
 
-import { Metadata } from 'next';
+"use client";
+
 import Link from 'next/link';
 import { 
   ArrowLeft,
@@ -15,12 +16,6 @@ import {
   Lightbulb,
   Shield
 } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: '关于我们 - IoT设备管理平台',
-  description: '了解我们的团队、使命和愿景，致力于为全球企业提供专业的物联网解决方案。',
-  keywords: '关于我们,团队介绍,公司使命,物联网解决方案',
-};
 
 /**
  * 团队成员卡片

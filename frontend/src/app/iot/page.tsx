@@ -3,7 +3,8 @@
  * 展示所有可用的IoT设备类型和产品信息
  */
 
-import { Metadata } from 'next';
+"use client";
+
 import Link from 'next/link';
 import { 
   ArrowLeft,
@@ -17,12 +18,6 @@ import {
   Wifi,
   Cpu
 } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: '设备总览 - IoT设备管理平台',
-  description: '查看我们支持的所有IoT设备类型，包括智能传感器、智能网关、智能控制器等产品。',
-  keywords: '设备总览,IoT设备,智能传感器,智能网关,智能控制器',
-};
 
 /**
  * 设备类型卡片

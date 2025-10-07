@@ -6,7 +6,7 @@
     "author": "IoT Platform Team"
   },
   "api": {
-    "baseUrl": "",
+    "baseUrl": "http://localhost:8000",
     "timeout": 30000,
     "retryAttempts": 3,
     "retryDelay": 1000

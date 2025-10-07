@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # IoT Platform 现代化CLI工具
-# 版本: 2.0.0
+# 版本: 2.1.0
 # 描述: 统一的IoT平台管理命令行工具
 
 set -e
@@ -14,20 +14,33 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
+GRAY='\033[0;37m'
+BOLD='\033[1m'
 NC='\033[0m'
 
 # 项目路径
 PROJECT_DIR="/opt/iot-platform"
 SCRIPT_DIR="$PROJECT_DIR/scripts"
 
+# 配置
+API_TIMEOUT=5
+REFRESH_INTERVAL=2
+
 # 辅助函数
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+
+# 状态指示器
+status_ok() { echo -e "${GREEN}✓${NC}"; }
+status_error() { echo -e "${RED}✗${NC}"; }
+status_warning() { echo -e "${YELLOW}⚠${NC}"; }
+status_info() { echo -e "${BLUE}ℹ${NC}"; }
 
 # 显示帮助信息
 show_help() {
-    echo -e "${CYAN}IoT Platform CLI 工具 v2.0.0${NC}"
+    echo -e "${CYAN}IoT Platform CLI 工具 v2.1.0${NC}"
     echo "=================================="
     echo
     echo -e "${WHITE}用法:${NC}"
@@ -35,9 +48,12 @@ show_help() {
     echo
     echo -e "${GREEN}📊 系统管理${NC}"
     echo "  status              - 查看系统状态"
+    echo "  dashboard           - 实时仪表板 (按q退出)"
+    echo "  quick|q             - 快速状态检查"
     echo "  health              - 健康检查"
     echo "  resources           - 系统资源使用"
     echo "  ps                  - 服务状态"
+    echo "  watch               - 实时监控服务状态"
     echo
     echo -e "${BLUE}📋 日志管理${NC}"
     echo "  logs [服务]         - 查看日志 (使用Docker原生命令)"
@@ -71,10 +87,19 @@ show_help() {
     echo "  info                - 系统信息"
     echo
     echo -e "${GREEN}示例:${NC}"
-    echo "  ./scripts/iot-cli.sh status"
+    echo "  ./scripts/iot-cli.sh q                # 快速状态检查"
+    echo "  ./scripts/iot-cli.sh status          # 详细系统状态"
+    echo "  ./scripts/iot-cli.sh dashboard       # 实时仪表板"
+    echo "  ./scripts/iot-cli.sh watch           # 实时监控"
     echo "  ./scripts/iot-cli.sh logs tail backend"
     echo "  ./scripts/iot-cli.sh restart backend"
     echo "  ./scripts/iot-cli.sh logs search 'error'"
+    echo
+    echo -e "${YELLOW}💡 提示:${NC}"
+    echo "  - 使用 'q' 或 'quick' 命令进行快速状态检查"
+    echo "  - 使用 'dashboard' 命令获得最佳的状态查看体验"
+    echo "  - 使用 'watch' 命令进行简单的服务状态监控"
+    echo "  - 所有命令都支持超时和错误处理"
     echo
 }
 
@@ -93,21 +118,142 @@ check_environment() {
     cd "$PROJECT_DIR"
 }
 
+# 检查服务状态
+check_service_status() {
+    local service="$1"
+    if docker-compose ps "$service" 2>/dev/null | grep -q "Up"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 获取服务状态图标
+get_service_status_icon() {
+    local service="$1"
+    if check_service_status "$service"; then
+        status_ok
+    else
+        status_error
+    fi
+}
+
 # 系统状态
 show_status() {
     echo -e "${GREEN}📊 系统状态${NC}"
     echo "=================================="
+    
+    # 服务状态概览
+    echo -e "${BOLD}服务状态概览:${NC}"
+    local services=("backend" "frontend" "postgres" "redis" "emqx")
+    for service in "${services[@]}"; do
+        local status_icon=$(get_service_status_icon "$service")
+        printf "  %-12s %s\n" "$service:" "$status_icon"
+    done
+    echo
+    
+    # 详细状态
+    echo -e "${BOLD}详细状态:${NC}"
     docker-compose ps
     echo
-    echo -e "${BLUE}健康检查:${NC}"
-    curl -s http://localhost:8000/health | python3 -m json.tool 2>/dev/null || echo "后端服务不可用"
+    
+    # 健康检查
+    echo -e "${BOLD}健康检查:${NC}"
+    local health_response=$(curl -s --max-time $API_TIMEOUT http://localhost:8000/health 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$health_response" ]; then
+        echo "$health_response" | python3 -m json.tool 2>/dev/null || echo "$health_response"
+    else
+        echo -e "${RED}后端服务不可用${NC}"
+    fi
+}
+
+# 实时仪表板
+show_dashboard() {
+    echo -e "${CYAN}📊 IoT Platform 实时仪表板${NC}"
+    echo "=================================="
+    echo -e "${GRAY}按 'q' 退出监控${NC}"
+    echo
+    
+    while true; do
+        # 清屏
+        clear
+        
+        # 标题
+        echo -e "${CYAN}📊 IoT Platform 实时仪表板${NC} - $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "=================================="
+        
+        # 服务状态
+        echo -e "${BOLD}🔧 服务状态:${NC}"
+        local services=("backend" "frontend" "postgres" "redis" "emqx")
+        for service in "${services[@]}"; do
+            local status_icon=$(get_service_status_icon "$service")
+            printf "  %-12s %s\n" "$service:" "$status_icon"
+        done
+        echo
+        
+        # 系统资源
+        echo -e "${BOLD}💻 系统资源:${NC}"
+        echo -e "  负载: $(uptime | awk -F'load average:' '{print $2}')"
+        echo -e "  内存: $(free -h | awk 'NR==2{printf "%.1f%%", $3/$2*100}')"
+        echo -e "  磁盘: $(df -h / | awk 'NR==2{print $5}')"
+        echo
+        
+        # 容器资源
+        echo -e "${BOLD}🐳 容器资源:${NC}"
+        docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | head -6
+        echo
+        
+        # 网络状态
+        echo -e "${BOLD}🌐 网络状态:${NC}"
+        local ports=("3000:Frontend" "8000:Backend" "5432:PostgreSQL" "6379:Redis" "1883:MQTT" "18083:EMQX")
+        for port_info in "${ports[@]}"; do
+            local port=$(echo "$port_info" | cut -d: -f1)
+            local service_name=$(echo "$port_info" | cut -d: -f2)
+            if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+                printf "  %-12s %s\n" "$service_name:" "$(status_ok)"
+            else
+                printf "  %-12s %s\n" "$service_name:" "$(status_error)"
+            fi
+        done
+        echo
+        
+        # 设备统计
+        echo -e "${BOLD}📱 设备统计:${NC}"
+        local device_count=$(curl -s --max-time $API_TIMEOUT http://localhost:8000/api/devices 2>/dev/null | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    if data.get('success'):
+        print(len(data.get('data', [])))
+    else:
+        print('0')
+except:
+    print('0')
+" 2>/dev/null || echo "0")
+        echo -e "  在线设备: $device_count"
+        echo
+        
+        # 等待用户输入
+        echo -e "${GRAY}刷新间隔: ${REFRESH_INTERVAL}秒 | 按 'q' 退出${NC}"
+        
+        # 非阻塞读取
+        read -t $REFRESH_INTERVAL -n 1 key 2>/dev/null
+        if [[ "$key" == "q" ]]; then
+            break
+        fi
+    done
+    
+    echo -e "\n${GREEN}退出仪表板${NC}"
 }
 
 # 健康检查
 show_health() {
     echo -e "${GREEN}🏥 健康检查${NC}"
     echo "=================================="
-    curl -s http://localhost:8000/health | python3 -c "
+    
+    local health_response=$(curl -s --max-time $API_TIMEOUT http://localhost:8000/health 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$health_response" ]; then
+        echo "$health_response" | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
@@ -118,21 +264,69 @@ try:
         print(f'  {service}: {status}')
 except Exception as e:
     print(f'解析失败: {e}')
-" 2>/dev/null || echo "无法获取健康状态"
+" 2>/dev/null || echo "$health_response"
+    else
+        echo -e "${RED}无法获取健康状态${NC}"
+    fi
+}
+
+# 实时监控
+show_watch() {
+    echo -e "${CYAN}👀 实时监控服务状态${NC}"
+    echo "=================================="
+    echo -e "${GRAY}按 Ctrl+C 退出监控${NC}"
+    echo
+    
+    while true; do
+        clear
+        echo -e "${CYAN}👀 实时监控服务状态${NC} - $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "=================================="
+        
+        # 服务状态
+        echo -e "${BOLD}🔧 服务状态:${NC}"
+        local services=("backend" "frontend" "postgres" "redis" "emqx")
+        for service in "${services[@]}"; do
+            local status_icon=$(get_service_status_icon "$service")
+            printf "  %-12s %s\n" "$service:" "$status_icon"
+        done
+        echo
+        
+        # 容器状态
+        echo -e "${BOLD}🐳 容器状态:${NC}"
+        docker-compose ps
+        echo
+        
+        # 等待
+        sleep $REFRESH_INTERVAL
+    done
 }
 
 # 系统资源
 show_resources() {
     echo -e "${GREEN}💻 系统资源${NC}"
     echo "=================================="
-    echo -e "${BLUE}系统负载:${NC}"
-    uptime
+    
+    # 系统概览
+    echo -e "${BOLD}系统概览:${NC}"
+    echo -e "  负载: $(uptime | awk -F'load average:' '{print $2}')"
+    echo -e "  运行时间: $(uptime | awk '{print $3,$4}' | sed 's/,//')"
     echo
-    echo -e "${BLUE}内存使用:${NC}"
-    free -h
+    
+    # 内存使用
+    echo -e "${BOLD}内存使用:${NC}"
+    free -h | awk 'NR==1{printf "%-10s %10s %10s %10s %10s\n", $1, $2, $3, $4, $5}'
+    free -h | awk 'NR==2{printf "%-10s %10s %10s %10s %10s\n", $1, $2, $3, $4, $5}'
     echo
-    echo -e "${BLUE}Docker容器资源:${NC}"
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    
+    # 磁盘使用
+    echo -e "${BOLD}磁盘使用:${NC}"
+    df -h / | awk 'NR==1{printf "%-10s %10s %10s %10s %10s %s\n", $1, $2, $3, $4, $5, $6}'
+    df -h / | awk 'NR==2{printf "%-10s %10s %10s %10s %10s %s\n", $1, $2, $3, $4, $5, $6}'
+    echo
+    
+    # Docker容器资源
+    echo -e "${BOLD}Docker容器资源:${NC}"
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" 2>/dev/null || echo "无法获取容器资源信息"
 }
 
 # 服务状态
@@ -387,6 +581,9 @@ main() {
         "status")
             show_status
             ;;
+        "dashboard")
+            show_dashboard
+            ;;
         "health")
             show_health
             ;;
@@ -395,6 +592,12 @@ main() {
             ;;
         "ps")
             show_ps
+            ;;
+        "watch")
+            show_watch
+            ;;
+        "quick"|"q")
+            quick_status
             ;;
         "logs")
             handle_logs "$@"
@@ -445,6 +648,32 @@ main() {
             exit 1
             ;;
     esac
+}
+
+# 快速状态检查
+quick_status() {
+    echo -e "${BOLD}🔧 IoT Platform 快速状态${NC}"
+    echo "================================"
+    
+    local services=("backend" "frontend" "postgres" "redis" "emqx")
+    local all_ok=true
+    
+    for service in "${services[@]}"; do
+        if check_service_status "$service"; then
+            printf "  %-12s %s\n" "$service:" "$(status_ok)"
+        else
+            printf "  %-12s %s\n" "$service:" "$(status_error)"
+            all_ok=false
+        fi
+    done
+    
+    echo
+    if $all_ok; then
+        echo -e "${GREEN}✅ 所有服务运行正常${NC}"
+    else
+        echo -e "${RED}❌ 部分服务异常${NC}"
+        echo -e "${YELLOW}💡 使用 'dashboard' 命令查看详细信息${NC}"
+    fi
 }
 
 # 运行主函数
