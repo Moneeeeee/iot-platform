@@ -5,7 +5,7 @@
 
 import { Router } from 'express';
 import { TenantPlugin, PluginConfig, PluginContext, PluginRoute, PluginService } from './plugin-interface';
-import { logger } from '../common/logger';
+import { logger } from '@/common/logger';
 
 export abstract class BaseTenantPlugin implements TenantPlugin {
   readonly tenantId: string;

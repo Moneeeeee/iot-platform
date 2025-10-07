@@ -4,8 +4,8 @@
  */
 
 import { EventEmitter } from 'events';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
 
 export interface MQTTConfig {
   // Broker 配置

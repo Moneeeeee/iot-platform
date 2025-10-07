@@ -1,0 +1,15 @@
+{
+  "id": "smart-gateway",
+  "name": "智能网关",
+  "version": "1.0.0",
+  "description": "智能网关设备插件",
+  "enabled": true,
+  "deviceType": "smart-gateway",
+  "protocols": ["mqtt", "websocket", "udp"],
+  "features": {
+    "dataCollection": true,
+    "remoteControl": true,
+    "ota": true,
+    "alerts": true
+  }
+}

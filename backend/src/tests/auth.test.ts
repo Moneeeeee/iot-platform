@@ -3,7 +3,7 @@
  */
 
 import request from 'supertest';
-import { Application } from '../index';
+import { Application } from '@/index';
 
 describe('Authentication', () => {
   let app: Application;

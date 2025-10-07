@@ -14,44 +14,41 @@ import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
 
 // 导入核心模块
-import { authService } from './security/auth';
-import { credentialsService } from './security/credentials';
-import { protocolAdapter } from './mqtt/adapters';
-import { shadowService } from './shadow';
-import { rateLimiter } from './middleware/rate-limiter';
-import { idempotencyService } from './middleware/idempotency';
-import { serviceContainer } from './db/container';
+import { authService } from '@/core/security/auth';
+import { credentialsService } from '@/core/security/credentials';
+// 协议适配器现在通过ProtocolManager统一管理
+import { shadowService } from '@/core/shadow';
+import { rateLimiter } from '@/core/middleware/rate-limiter';
+import { idempotencyService } from '@/core/middleware/idempotency';
+import { serviceContainer } from '@/core/db/container';
 
 // 导入配置中心
-import { configManager } from '../config-center/config-manager';
+import { configManager } from '@/config-center/config-manager';
 
 // 导入插件系统
-import { PluginLoader } from './plugin-loader';
+import { PluginLoader } from '@/core/plugin-loader';
 
 // 导入公共工具
-import { db } from '../common/config/database';
-import { logger, httpLogger } from '../common/logger';
+import { db } from '@/common/config/database';
+import { logger, httpLogger } from '@/common/logger';
 import { 
   globalErrorHandler, 
   notFound, 
   handleUncaughtException, 
   handleUnhandledRejection 
-} from './middleware/errorHandler';
+} from '@/core/middleware/errorHandler';
 
 // 导入API路由
-import authRoutes from '../api/auth';
-import userRoutes from '../api/users';
-import deviceRoutes from '../api/devices';
-import systemRoutes from '../api/system';
-import powersafeRoutes from '../api/powersafe';
-import deviceBootstrapRoutes from '../api/device-bootstrap';
+import authRoutes from '@/api/auth';
+import userRoutes from '@/api/users';
+import deviceRoutes from '@/api/devices';
+import systemRoutes from '@/api/system';
+import deviceBootstrapRoutes from '@/api/device-bootstrap';
 
 // 导入服务
-import { MQTTService } from './mqtt';
-import { UDPService } from './udp';
-import { WebSocketService } from './websocket';
-import { AlertService } from './alert';
-import { healthService } from './health';
+import { AlertService } from '@/core/alert';
+import { healthService } from '@/core/health';
+import { ProtocolManager } from '@/core/protocols/protocol-manager';
 
 // 加载环境变量
 dotenv.config();
@@ -65,6 +62,7 @@ export class IoTPlatformServer {
   private io: SocketIOServer;
   private port: number;
   private pluginLoader: PluginLoader;
+  private protocolManager?: ProtocolManager;
 
   constructor() {
     this.app = express();
@@ -86,7 +84,7 @@ export class IoTPlatformServer {
 
     // 初始化插件加载器
     this.pluginLoader = PluginLoader.getInstance(
-      path.join(process.cwd(), 'backend/src/plugins'),
+      path.join(process.cwd(), 'src/plugins'),
       {
         app: this.app,
         configManager,
@@ -115,9 +113,6 @@ export class IoTPlatformServer {
       serviceContainer.register('configManager', () => configManager);
 
       // 注册现有服务
-      serviceContainer.register('mqttService', () => new MQTTService());
-      serviceContainer.register('udpService', () => new UDPService());
-      serviceContainer.register('wsService', () => new WebSocketService(this.io));
       serviceContainer.register('alertService', () => new AlertService());
       serviceContainer.register('healthService', () => healthService);
 
@@ -131,7 +126,7 @@ export class IoTPlatformServer {
       const adapterConfig = {
         mqtt: {
           enabled: true,
-          brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://emqx',
+          brokerUrl: process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883',
           port: parseInt(process.env.MQTT_BROKER_PORT || '1883'),
           username: process.env.MQTT_USERNAME,
           password: process.env.MQTT_PASSWORD
@@ -154,10 +149,16 @@ export class IoTPlatformServer {
           enabled: true,
           port: parseInt(process.env.UDP_PORT || '8888'),
           host: process.env.UDP_HOST || '0.0.0.0'
-        }
+        },
+        socketIO: this.io // 传递 Socket.IO 实例
       };
 
-      await protocolAdapter.initialize();
+      // 等待EMQX完全启动
+      await this.waitForEMQX();
+      
+      // 初始化协议管理器
+      this.protocolManager = ProtocolManager.getInstance(adapterConfig as any);
+      await this.protocolManager.initialize();
 
       // 初始化插件系统
       await this.pluginLoader.initialize();
@@ -346,7 +347,6 @@ export class IoTPlatformServer {
     this.app.use('/api/users', authService.requirePermission('user:read'), userRoutes);
     this.app.use('/api/devices', authService.requirePermission('device:read'), deviceRoutes);
     this.app.use('/api/system', authService.requirePermission('system:config'), systemRoutes);
-    this.app.use('/api/powersafe', powersafeRoutes);
     this.app.use('/api/device', deviceBootstrapRoutes);
 
     // 加载插件路由
@@ -418,6 +418,49 @@ export class IoTPlatformServer {
   }
 
   /**
+   * 等待EMQX完全启动
+   */
+  private async waitForEMQX(): Promise<void> {
+    const maxRetries = 30;
+    const retryInterval = 2000; // 2秒
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const mqtt = require('mqtt');
+        const client = mqtt.connect(process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883', {
+          connectTimeout: 5000,
+          clientId: `health-check-${Date.now()}`
+        });
+        
+        await new Promise((resolve, reject) => {
+          client.on('connect', () => {
+            client.end();
+            resolve(true);
+          });
+          
+          client.on('error', (error: Error) => {
+            client.end();
+            reject(error);
+          });
+          
+          setTimeout(() => {
+            client.end();
+            reject(new Error('Connection timeout'));
+          }, 5000);
+        });
+        
+        logger.info('EMQX is ready, proceeding with initialization');
+        return;
+      } catch (error) {
+        logger.info(`Waiting for EMQX... (${i + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
+      }
+    }
+    
+    throw new Error('EMQX failed to start within timeout period');
+  }
+
+  /**
    * 启动服务器
    */
   public async start(): Promise<void> {
@@ -455,8 +498,10 @@ export class IoTPlatformServer {
       // 关闭所有服务
       await serviceContainer.shutdownAll();
 
-      // 关闭协议适配器
-      await protocolAdapter.shutdown();
+      // 关闭协议管理器
+      if (this.protocolManager) {
+        await this.protocolManager.shutdown();
+      }
 
       // 关闭HTTP服务器
       this.server.close(() => {

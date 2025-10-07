@@ -9,10 +9,6 @@
     "home:register": "/register",
     "home:forgot-password": "/forgot-password",
     
-    "product:powersafe:index": "/:tenant/products/powersafe",
-    "product:powersafe:dashboard": "/:tenant/products/powersafe/dashboard",
-    "product:powersafe:devices": "/:tenant/products/powersafe/devices",
-    "product:powersafe:analytics": "/:tenant/products/powersafe/analytics",
     
     "device:smart-gateway:dashboard": "/:tenant/iot/smart-gateway/dashboard",
     "device:smart-gateway:manager": "/:tenant/iot/smart-gateway/manager",

@@ -4,8 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../common/logger';
-import { configManager } from '../common/config/config';
+import { logger } from '@/common/logger';
 
 /**
  * Prisma客户端实例
@@ -16,12 +15,25 @@ class DatabaseService {
   private prisma: PrismaClient;
 
   private constructor() {
-    const databaseConfig = configManager.get('database');
+    // 从配置文件或环境变量读取数据库URL
+    let databaseUrl = process.env.DATABASE_URL;
+    
+    // 如果没有环境变量，尝试从配置文件读取
+    if (!databaseUrl) {
+      try {
+        const configPath = process.env.CONFIG_FILE || '/app/config/config.json';
+        const config = require(configPath);
+        databaseUrl = config.database?.url;
+      } catch (error) {
+        // 如果配置文件读取失败，使用默认值
+        databaseUrl = 'postgresql://iot_user:iot_password@postgres:5432/iot_platform';
+      }
+    }
     
     this.prisma = new PrismaClient({
       datasources: {
         db: {
-          url: databaseConfig.url,
+          url: databaseUrl,
         },
       },
       log: [

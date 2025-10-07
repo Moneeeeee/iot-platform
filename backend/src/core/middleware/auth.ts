@@ -5,10 +5,10 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../common/config/database';
-import { User, UserRole, Permission } from '../common/types';
-import { logger } from '../common/logger';
-import { config } from '../common/config/config';
+import { prisma } from '@/common/config/database';
+import { User, UserRole, Permission } from '@/common/types';
+import { logger } from '@/common/logger';
+import { config } from '@/config-center/config-manager';
 
 /**
  * 扩展Express Request接口，添加用户信息

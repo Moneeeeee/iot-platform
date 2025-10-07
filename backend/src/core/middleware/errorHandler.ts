@@ -4,7 +4,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../common/logger';
+import { logger } from '@/common/logger';
 
 export interface AppError extends Error {
   statusCode?: number;

@@ -5,9 +5,9 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { AppError } from '../common/errors';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { AppError } from '@/core/middleware/errorHandler';
 
 export interface AuthContext {
   userId?: string;

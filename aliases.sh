@@ -31,7 +31,6 @@ alias iot-ps='cd /opt/iot-platform && docker-compose ps'
 alias iot-stats='docker stats --no-stream'
 
 # API测试
-alias iot-test-powersafe='curl -X POST http://localhost:8000/api/powersafe/ota/check-device -H "Content-Type: application/json" -d "{\"board_name\":\"PS-1000\",\"mac_address\":\"AA:BB:CC:DD:EE:FF\",\"firmware_version\":\"1.1.0\"}" | python3 -m json.tool'
 alias iot-test-login='curl -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"admin\",\"password\":\"admin123\"}" | python3 -m json.tool'
 
 # 数据库操作

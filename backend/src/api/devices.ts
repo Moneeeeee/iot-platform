@@ -5,10 +5,10 @@
 
 import { Router, Request, Response } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { DeviceType, DeviceStatus, ProtocolType, Permission } from '../common/types';
-import { requirePermission } from '../core/middleware/auth';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { DeviceType, DeviceStatus, ProtocolType, Permission } from '@/common/types';
+import { requirePermission } from '@/core/middleware/auth';
 
 const router = Router();
 
@@ -68,12 +68,16 @@ router.get('/', [
           id: true,
           slug: true,
           name: true,
-          type: true,
           status: true,
-          capabilities: true,
           lastSeenAt: true,
           createdAt: true,
           updatedAt: true,
+          template: {
+            select: {
+              type: true,
+              name: true
+            }
+          }
         },
         skip,
         take: limit,
@@ -135,13 +139,18 @@ router.get('/:id', [
         id: true,
         slug: true,
         name: true,
-        type: true,
         status: true,
-        config: true,
-        capabilities: true,
+        attributes: true,
+        metadata: true,
         lastSeenAt: true,
         createdAt: true,
         updatedAt: true,
+        template: {
+          select: {
+            type: true,
+            name: true
+          }
+        }
       },
     });
 
@@ -208,11 +217,14 @@ router.post('/', [
       });
     }
 
-    const { slug, name, type, config, capabilities } = req.body;
+    const { slug, name, templateId, attributes, metadata } = req.body;
 
     // 检查设备标识是否已存在
-    const existingDevice = await prisma.device.findUnique({
-      where: { slug },
+    const existingDevice = await prisma.device.findFirst({
+      where: { 
+        slug,
+        tenantId: req.user!.tenantId 
+      },
     });
 
     if (existingDevice) {
@@ -228,22 +240,28 @@ router.post('/', [
       data: {
         slug,
         name,
-        type,
-        config,
-        capabilities,
+        templateId,
+        attributes: attributes || {},
+        metadata: metadata || {},
         userId: req.user!.id,
+        tenantId: req.user!.tenantId,
       },
       select: {
         id: true,
         slug: true,
         name: true,
-        type: true,
         status: true,
-        config: true,
-        capabilities: true,
+        attributes: true,
+        metadata: true,
         lastSeenAt: true,
         createdAt: true,
         updatedAt: true,
+        template: {
+          select: {
+            type: true,
+            name: true
+          }
+        }
       },
     });
 
@@ -328,13 +346,18 @@ router.put('/:id', [
         id: true,
         slug: true,
         name: true,
-        type: true,
         status: true,
-        config: true,
-        capabilities: true,
+        attributes: true,
+        metadata: true,
         lastSeenAt: true,
         createdAt: true,
         updatedAt: true,
+        template: {
+          select: {
+            type: true,
+            name: true
+          }
+        }
       },
     });
 
@@ -467,7 +490,7 @@ router.get('/:id/data', [
     }
 
     // 查询设备数据
-    const data = await prisma.deviceData.findMany({
+    const data = await prisma.telemetry.findMany({
       where,
       orderBy: { timestamp: 'desc' },
       take: limit,
@@ -536,7 +559,7 @@ router.post('/:id/control', [
     }
 
     // 检查设备是否在线
-    if (device.status !== DeviceStatus.ONLINE) {
+    if (device.status !== 'ONLINE') {
       return res.status(400).json({
         success: false,
         error: '设备不在线，无法执行控制命令',
@@ -625,7 +648,6 @@ router.put('/:id/status', [
         id: true,
         slug: true,
         name: true,
-        type: true,
         status: true,
         lastSeenAt: true,
         updatedAt: true,

@@ -7,10 +7,10 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { UserRole, Permission, Language } from '../common/types';
-import { config } from '../common/config/config';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { UserRole, Permission, Language } from '@/common/types';
+import { configManager } from '@/config-center/config-manager';
 
 const router = Router();
 
@@ -190,7 +190,7 @@ router.post('/login', [
         role: user.role,
         permissions: user.permissions,
       },
-      config.jwt.secret,
+      process.env.JWT_SECRET || 'your-secret-key',
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       } as any
@@ -248,7 +248,7 @@ router.get('/me', async (req: Request, res: Response) => {
     const token = authHeader.substring(7);
     
     // 验证令牌
-    const decoded = jwt.verify(token, config.jwt.secret) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
     
     // 获取用户信息
     const user = await prisma.user.findUnique({
@@ -309,7 +309,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     const token = authHeader.substring(7);
     
     // 验证令牌（即使过期也要能解析）
-    const decoded = jwt.verify(token, config.jwt.secret, { ignoreExpiration: true }) as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', { ignoreExpiration: true }) as any;
     
     // 获取用户信息
     const user = await prisma.user.findUnique({
@@ -339,7 +339,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
         role: user.role,
         permissions: user.permissions,
       },
-      config.jwt.secret,
+      process.env.JWT_SECRET || 'your-secret-key',
       {
         expiresIn: process.env.JWT_EXPIRES_IN || '7d',
       } as any
@@ -376,7 +376,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const decoded = jwt.verify(token, config.jwt.secret) as any;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
         logger.info('User logout', { userId: decoded.userId, action: 'USER_LOGOUT' });
       } catch (error) {
         // 忽略令牌解析错误

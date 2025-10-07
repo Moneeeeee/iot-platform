@@ -22,8 +22,9 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('iot_platform_access_token');
       if (!token) return;
 
-      // 连接到默认命名空间，指定正确的路径
-      const newSocket = io("/", {
+      // 连接到后端WebSocket服务
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8000';
+      const newSocket = io(wsUrl, {
         path: "/socket.io",
         auth: {
           token,
@@ -56,7 +57,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         setIsConnected(false);
       };
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

@@ -1,0 +1,15 @@
+{
+  "id": "smart-sensor",
+  "name": "智能传感器",
+  "version": "1.0.0",
+  "description": "智能传感器设备插件",
+  "enabled": true,
+  "deviceType": "smart-sensor",
+  "protocols": ["mqtt", "websocket"],
+  "features": {
+    "dataCollection": true,
+    "remoteControl": false,
+    "ota": true,
+    "alerts": true
+  }
+}

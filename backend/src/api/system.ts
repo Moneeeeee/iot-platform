@@ -5,10 +5,10 @@
 
 import { Router, Request, Response } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { Permission, LogLevel } from '../common/types';
-import { requirePermission, requireAdmin } from '../core/middleware/auth';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { Permission, LogLevel } from '@/common/types';
+import { requirePermission, requireAdmin } from '@/core/middleware/auth';
 
 const router = Router();
 

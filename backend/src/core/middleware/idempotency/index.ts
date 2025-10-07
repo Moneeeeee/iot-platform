@@ -5,7 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { logger } from '../common/logger';
+import { logger } from '@/common/logger';
 
 export interface IdempotencyConfig {
   keyGenerator?: (req: Request) => string;

@@ -17,7 +17,6 @@
       },
       "enabledPlugins": [
         "home",
-        "product-powersafe",
         "device-smart-gateway",
         "device-smart-controller",
         "device-smart-sensor",
@@ -58,7 +57,6 @@
       },
       "enabledPlugins": [
         "home",
-        "product-powersafe",
         "device-smart-gateway",
         "feature-telemetry",
         "feature-alerts"

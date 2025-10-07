@@ -5,8 +5,8 @@
 
 import { createClient } from 'redis';
 import mqtt from 'mqtt';
-import { logger } from '../common/logger';
-import { configManager } from '../common/config/config';
+import { logger } from '@/common/logger';
+import { configManager } from '@/config-center/config-manager';
 
 export interface HealthStatus {
   service: string;
@@ -56,8 +56,7 @@ export class HealthService {
    */
   private initializeMQTT(): void {
     try {
-      const mqttConfig = configManager.get('mqtt');
-      const mqttUrl = mqttConfig.broker;
+      const mqttUrl = process.env.MQTT_BROKER_URL || 'mqtt://emqx:1883';
       
       this.mqttClient = mqtt.connect(mqttUrl, {
         clientId: 'health-check-client',

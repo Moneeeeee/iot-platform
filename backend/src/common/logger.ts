@@ -258,6 +258,26 @@ export class Logger {
   }
 
   /**
+   * 记录用户操作日志
+   * @param userId 用户ID
+   * @param action 操作类型
+   * @param resource 资源类型
+   * @param resourceId 资源ID（可选）
+   * @param metadata 附加信息（可选）
+   */
+  userAction(userId: string, action: string, resource: string, resourceId?: string, metadata?: Record<string, any>): void {
+    const logMetadata = {
+      userId,
+      action,
+      resource,
+      ...(resourceId && { resourceId }),
+      ...metadata
+    };
+    const structuredLog = this.createStructuredLog('info', `User action: ${action}`, logMetadata);
+    logger.info(JSON.stringify(structuredLog));
+  }
+
+  /**
    * 记录告警日志
    * @param alertId 告警ID
    * @param deviceId 设备ID
@@ -274,23 +294,6 @@ export class Logger {
     logger.warn(JSON.stringify(structuredLog));
   }
 
-  /**
-   * 记录用户操作日志
-   * @param userId 用户ID
-   * @param action 操作类型
-   * @param resource 资源类型
-   * @param metadata 附加信息
-   */
-  userAction(userId: string, action: string, resource: string, metadata?: Record<string, any>): void {
-    const logMetadata = {
-      userId,
-      action,
-      resource,
-      ...metadata,
-    };
-    const structuredLog = this.createStructuredLog('info', `User action: ${action}`, logMetadata);
-    logger.info(JSON.stringify(structuredLog));
-  }
 
   /**
    * 记录错误日志
@@ -427,6 +430,25 @@ export const databaseLogger = new Logger('backend', 'database');
 export const authLogger = new Logger('backend', 'auth');
 export const alertLogger = new Logger('backend', 'alert');
 export const websocketLogger = new Logger('backend', 'websocket');
+
+// 为全局logger添加便捷方法
+(logger as any).userAction = (userId: string, action: string, resource: string, resourceId?: string, metadata?: Record<string, any>) => {
+  const logMetadata = {
+    userId,
+    action,
+    resource,
+    ...(resourceId && { resourceId }),
+    ...metadata
+  };
+  logger.info(JSON.stringify({
+    service: 'backend',
+    component: 'api',
+    level: 'info',
+    message: `User action: ${action}`,
+    timestamp: getChinaTimestamp(),
+    metadata: logMetadata
+  }));
+};
 
 // 导出默认日志器实例（向后兼容）
 export { logger };

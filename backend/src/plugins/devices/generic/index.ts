@@ -3,9 +3,9 @@
  * 提供基础的设备功能
  */
 
-import { BaseDevicePlugin } from '../../../core/device-plugin';
-import { PluginConfig, PluginContext } from '../../../core/plugin-interface';
-import { MessageType } from '../../../core/mqtt/message-bus';
+import { BaseDevicePlugin } from '@/core/device-plugin';
+import { PluginConfig, PluginContext } from '@/core/plugin-interface';
+import { MessageType } from '@/core/event-bus';
 
 const pluginConfig: PluginConfig = {
   name: "generic-device-plugin",

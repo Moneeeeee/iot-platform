@@ -8,10 +8,10 @@
  * 5. 失败率监控
  */
 
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { messageBus, Channels, MessageType, OTAProgressMessage, OTAStatusMessage } from '../core/message-bus';
-import { AppError } from '../common/errors';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { eventBus, MessageType, OTAProgressMessage, OTAStatusMessage } from '@/core/event-bus';
+import { AppError } from '@/core/middleware/errorHandler';
 
 // ==========================================
 // 灰度策略类型
@@ -333,7 +333,7 @@ export class RolloutManager {
       source: 'ota-manager',
     };
 
-    await messageBus.publish(Channels.OTA_PROGRESS, progressMessage);
+    await eventBus.publish(MessageType.OTA_PROGRESS, progressMessage);
 
     // 检查是否需要自动回滚
     await this.checkAutoRollback(rolloutId);
@@ -511,8 +511,8 @@ export class RolloutManager {
         source: 'ota-manager',
       };
 
-      await messageBus.publish(
-        Channels.deviceChannel(deviceId, 'ota'),
+      await eventBus.publish(
+        MessageType.OTA_STATUS,
         message
       );
     }

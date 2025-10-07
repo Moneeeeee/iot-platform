@@ -4,8 +4,8 @@
  */
 
 import { Router } from 'express';
-import { BaseTenantPlugin } from '../../core/tenant-plugin';
-import { PluginConfig, PluginRoute, PluginService } from '../../core/plugin-interface';
+import { BaseTenantPlugin } from '@/core/tenant-plugin';
+import { PluginConfig, PluginRoute, PluginService } from '@/core/plugin-interface';
 
 export class EnterpriseTenantPlugin extends BaseTenantPlugin {
   constructor(tenantId: string) {

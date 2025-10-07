@@ -53,7 +53,6 @@ show_help() {
     echo
     echo -e "${PURPLE}📱 设备管理${NC}"
     echo "  devices             - 查看设备列表"
-    echo "  powersafe           - PowerSafe设备状态"
     echo "  mqtt-clients        - MQTT客户端连接"
     echo
     echo -e "${RED}🗄️ 数据库管理${NC}"
@@ -63,7 +62,6 @@ show_help() {
     echo
     echo -e "${CYAN}🌐 API测试${NC}"
     echo "  test-health         - 测试健康检查API"
-    echo "  test-powersafe      - 测试PowerSafe API"
     echo "  test-login          - 测试登录API"
     echo
     echo -e "${WHITE}🔍 系统工具${NC}"
@@ -255,18 +253,6 @@ except Exception as e:
 " 2>/dev/null || echo "无法获取设备列表"
 }
 
-# PowerSafe设备
-show_powersafe() {
-    echo -e "${PURPLE}📱 PowerSafe设备${NC}"
-    echo "=================================="
-    curl -s -X POST http://localhost:8000/api/powersafe/ota/check-device \
-        -H "Content-Type: application/json" \
-        -d '{
-            "board_name": "PS-1000",
-            "mac_address": "AA:BB:CC:DD:EE:FF",
-            "firmware_version": "1.1.0"
-        }' | python3 -m json.tool 2>/dev/null || echo "无法获取PowerSafe设备信息"
-}
 
 # MQTT客户端
 show_mqtt_clients() {
@@ -327,16 +313,6 @@ test_api() {
             echo -e "${CYAN}🌐 测试健康检查API${NC}"
             curl -s http://localhost:8000/health | python3 -m json.tool
             ;;
-        "powersafe")
-            echo -e "${CYAN}🌐 测试PowerSafe API${NC}"
-            curl -X POST http://localhost:8000/api/powersafe/ota/check-device \
-                -H "Content-Type: application/json" \
-                -d '{
-                    "board_name": "PS-1000",
-                    "mac_address": "AA:BB:CC:DD:EE:FF",
-                    "firmware_version": "1.1.0"
-                }' | python3 -m json.tool
-            ;;
         "login")
             echo -e "${CYAN}🌐 测试登录API${NC}"
             curl -X POST http://localhost:8000/api/auth/login \
@@ -348,7 +324,7 @@ test_api() {
             ;;
         *)
             echo -e "${RED}❌ 无效的API类型: $api_type${NC}"
-            echo "可用类型: health, powersafe, login"
+            echo "可用类型: health, login"
             exit 1
             ;;
     esac
@@ -429,9 +405,6 @@ main() {
         "devices")
             show_devices
             ;;
-        "powersafe")
-            show_powersafe
-            ;;
         "mqtt-clients")
             show_mqtt_clients
             ;;
@@ -446,9 +419,6 @@ main() {
             ;;
         "test-health")
             test_api "health"
-            ;;
-        "test-powersafe")
-            test_api "powersafe"
             ;;
         "test-login")
             test_api "login"

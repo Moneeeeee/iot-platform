@@ -8,8 +8,8 @@
  * 5. 指令验证
  */
 
-import { logger } from '../common/logger';
-import { AppError } from '../common/errors';
+import { logger } from '@/common/logger';
+import { AppError } from '@/core/middleware/errorHandler';
 
 // ==========================================
 // 模板定义类型

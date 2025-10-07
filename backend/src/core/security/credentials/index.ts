@@ -4,8 +4,8 @@
  */
 
 import crypto from 'crypto';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
 
 export interface DeviceCredentials {
   username: string;

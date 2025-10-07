@@ -4,9 +4,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { AlertLevel, AlertStatus, DeviceStatus } from '../common/types';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { AlertLevel, AlertStatus, DeviceStatus } from '@/common/types';
 import nodemailer from 'nodemailer';
 
 /**

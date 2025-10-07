@@ -5,8 +5,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { Logger } from '../common/logger';
-import { generateBootstrapConfig, recordBootstrapEvent, BootstrapRequest } from '../core/bootstrap/device-bootstrap';
+import { Logger } from '@/common/logger';
+import { generateBootstrapConfig, recordBootstrapEvent, BootstrapRequest, resolveTenant, determineDeviceType } from '@/core/bootstrap/device-bootstrap';
 
 const router = Router();
 
@@ -91,7 +91,7 @@ router.post('/config', async (req: Request, res: Response) => {
       // 使用新的引导架构
       config = await generateBootstrapConfig(deviceInfo);
     } else {
-      // 使用简化的配置格式保持兼容性
+      // 使用新架构配置格式
       config = await generateLegacyConfig(deviceInfo);
     }
     
@@ -113,8 +113,11 @@ router.post('/config', async (req: Request, res: Response) => {
  * 生成兼容旧版本的配置
  */
 async function generateLegacyConfig(deviceInfo: BootstrapRequest) {
-  // 简化的配置格式，保持与现有设备的兼容性
+  // 新架构配置格式
   const currentTime = Date.now();
+  const deviceId = deviceInfo.device_id || deviceInfo.mac_address;
+  const tenantId = await resolveTenant(deviceInfo);
+  const deviceType = determineDeviceType(deviceInfo);
   
   return {
     mqtt: {
@@ -127,10 +130,16 @@ async function generateLegacyConfig(deviceInfo: BootstrapRequest) {
       clean_session: true,
       ssl: false,
       topics: {
-        data: `devices/${deviceInfo.device_id || deviceInfo.mac_address}/data`,
-        status: `devices/${deviceInfo.device_id || deviceInfo.mac_address}/status`,
-        command: `devices/${deviceInfo.device_id || deviceInfo.mac_address}/command`,
-        config: `devices/${deviceInfo.device_id || deviceInfo.mac_address}/config`
+        telemetry: `iot/${tenantId}/${deviceType}/${deviceId}/telemetry`,
+        status: `iot/${tenantId}/${deviceType}/${deviceId}/status`,
+        event: `iot/${tenantId}/${deviceType}/${deviceId}/event`,
+        cmd: `iot/${tenantId}/${deviceType}/${deviceId}/cmd`,
+        cmdres: `iot/${tenantId}/${deviceType}/${deviceId}/cmdres`,
+        shadow_desired: `iot/${tenantId}/${deviceType}/${deviceId}/shadow/desired`,
+        shadow_reported: `iot/${tenantId}/${deviceType}/${deviceId}/shadow/reported`,
+        cfg: `iot/${tenantId}/${deviceType}/${deviceId}/cfg`,
+        ota_progress: `iot/${tenantId}/${deviceType}/${deviceId}/ota/progress`,
+        ota_status: `iot/${tenantId}/${deviceType}/${deviceId}/ota/status`
       }
     },
     websocket: {

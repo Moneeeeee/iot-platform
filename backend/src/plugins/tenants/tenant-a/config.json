@@ -1,0 +1,19 @@
+{
+  "id": "tenant-a",
+  "name": "租户A",
+  "version": "1.0.0",
+  "description": "租户A的配置",
+  "enabled": true,
+  "features": {
+    "mqtt": true,
+    "websocket": true,
+    "udp": false,
+    "ota": true,
+    "alerts": true
+  },
+  "settings": {
+    "theme": "blue",
+    "language": "zh-CN",
+    "timezone": "Asia/Shanghai"
+  }
+}

@@ -8,9 +8,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { AppError } from '../common/errors';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { AppError } from '@/core/middleware/errorHandler';
 
 // ==========================================
 // 扩展 Express Request 类型

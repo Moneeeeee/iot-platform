@@ -20,8 +20,8 @@ import {
 
 export const metadata: Metadata = {
   title: '设备总览 - IoT设备管理平台',
-  description: '查看我们支持的所有IoT设备类型，包括智能传感器、智能网关、智能控制器和PowerSafe电源安全设备等产品。',
-  keywords: '设备总览,IoT设备,智能传感器,智能网关,智能控制器,PowerSafe电源安全',
+  description: '查看我们支持的所有IoT设备类型，包括智能传感器、智能网关、智能控制器等产品。',
+  keywords: '设备总览,IoT设备,智能传感器,智能网关,智能控制器',
 };
 
 /**
@@ -190,21 +190,6 @@ export default function IoTDevicesPage() {
       ],
       status: 'available' as const,
       slug: 'smart-controller'
-    },
-    {
-      deviceType: 'powersafe',
-      title: 'PowerSafe电源安全',
-      description: '专业的智能电源安全监控设备，提供实时电源状态监测、异常预警、远程控制等功能。',
-      icon: Shield,
-      features: [
-        '实时安全监控',
-        '智能异常预警',
-        '远程电源控制',
-        'UPS电源管理',
-        '能耗分析'
-      ],
-      status: 'available' as const,
-      slug: 'powersafe'
     }
   ];
 
@@ -448,7 +433,6 @@ export default function IoTDevicesPage() {
                 <li><Link href="/iot/smart-sensor/profile" className="text-sm text-gray-400 hover:text-white">智能传感器</Link></li>
                 <li><Link href="/iot/smart-gateway/profile" className="text-sm text-gray-400 hover:text-white">智能网关</Link></li>
                 <li><Link href="/iot/smart-controller/profile" className="text-sm text-gray-400 hover:text-white">智能控制器</Link></li>
-                <li><Link href="/iot/powersafe/profile" className="text-sm text-gray-400 hover:text-white">PowerSafe电源安全</Link></li>
               </ul>
             </div>
             <div>

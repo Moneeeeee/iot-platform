@@ -1,284 +1,48 @@
 /**
  * 插件加载器
- * 扫描 plugins/tenants 和 plugins/devices，自动挂载路由和服务
+ * 自动发现和加载所有插件
  */
 
-import fs from 'fs/promises';
+import { PluginManager } from './plugin-manager';
+import { DevicePlugin } from './plugin-interface';
+import { Logger } from '@/common/logger';
 import path from 'path';
-import { EventEmitter } from 'events';
-import { logger } from '../common/logger';
-import { IPlugin, TenantPlugin, DevicePlugin, PluginContext } from './plugin-interface';
-import { ConfigManager } from '../config-center/config-manager';
+import fs from 'fs';
 
-export interface LoadedPlugin {
-  name: string;
-  type: 'tenant' | 'device';
-  instance: IPlugin;
-  path: string;
-  loadedAt: Date;
-}
-
-export class PluginLoader extends EventEmitter {
+export class PluginLoader {
   private static instance: PluginLoader;
-  private loadedPlugins = new Map<string, LoadedPlugin>();
-  private pluginsPath: string;
-  private context: PluginContext;
+  private pluginManager: PluginManager;
+  private logger = new Logger('PluginLoader');
+  private loadedPlugins: Map<string, DevicePlugin> = new Map();
+  private pluginDir: string;
+  private context: any;
 
-  constructor(pluginsPath: string, context: PluginContext) {
-    super();
-    this.pluginsPath = pluginsPath;
-    this.context = context;
+  constructor(pluginManager: PluginManager, pluginDir?: string, context?: any) {
+    this.pluginManager = pluginManager;
+    this.pluginDir = pluginDir || path.join(__dirname, '../plugins');
+    this.context = context || {};
   }
 
-  static getInstance(pluginsPath?: string, context?: PluginContext): PluginLoader {
-    if (!PluginLoader.instance && pluginsPath && context) {
-      PluginLoader.instance = new PluginLoader(pluginsPath, context);
+  /**
+   * 获取PluginLoader实例（单例）
+   */
+  static getInstance(pluginDir?: string, context?: any): PluginLoader {
+    if (!PluginLoader.instance) {
+      PluginLoader.instance = new PluginLoader(new PluginManager(), pluginDir, context);
     }
     return PluginLoader.instance;
   }
 
   /**
-   * 初始化插件加载器
+   * 初始化插件系统
    */
   async initialize(): Promise<void> {
     try {
-      // 确保插件目录存在
-      await this.ensurePluginDirectories();
-
-      // 加载所有插件
-      await this.loadAllPlugins();
-
-      logger.info('Plugin loader initialized', {
-        loadedPlugins: this.loadedPlugins.size
-      });
+      await this.loadDevicePlugins();
+      await this.loadTenantPlugins();
+      this.logger.info('Plugin system initialized');
     } catch (error) {
-      logger.error('Failed to initialize plugin loader', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 确保插件目录存在
-   */
-  private async ensurePluginDirectories(): Promise<void> {
-    const tenantPluginsPath = path.join(this.pluginsPath, 'tenants');
-    const devicePluginsPath = path.join(this.pluginsPath, 'devices');
-
-    try {
-      await fs.access(tenantPluginsPath);
-    } catch {
-      await fs.mkdir(tenantPluginsPath, { recursive: true });
-    }
-
-    try {
-      await fs.access(devicePluginsPath);
-    } catch {
-      await fs.mkdir(devicePluginsPath, { recursive: true });
-    }
-  }
-
-  /**
-   * 加载所有插件
-   */
-  private async loadAllPlugins(): Promise<void> {
-    // 加载租户插件
-    await this.loadTenantPlugins();
-
-    // 加载设备插件
-    await this.loadDevicePlugins();
-  }
-
-  /**
-   * 加载租户插件
-   */
-  private async loadTenantPlugins(): Promise<void> {
-    const tenantPluginsPath = path.join(this.pluginsPath, 'tenants');
-    
-    try {
-      const tenantDirs = await fs.readdir(tenantPluginsPath, { withFileTypes: true });
-      
-      for (const dir of tenantDirs) {
-        if (dir.isDirectory()) {
-          await this.loadTenantPlugin(dir.name);
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to load tenant plugins', error);
-    }
-  }
-
-  /**
-   * 加载设备插件
-   */
-  private async loadDevicePlugins(): Promise<void> {
-    const devicePluginsPath = path.join(this.pluginsPath, 'devices');
-    
-    try {
-      const deviceDirs = await fs.readdir(devicePluginsPath, { withFileTypes: true });
-      
-      for (const dir of deviceDirs) {
-        if (dir.isDirectory()) {
-          await this.loadDevicePlugin(dir.name);
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to load device plugins', error);
-    }
-  }
-
-  /**
-   * 加载单个租户插件
-   */
-  private async loadTenantPlugin(tenantName: string): Promise<void> {
-    try {
-      const pluginPath = path.join(this.pluginsPath, 'tenants', tenantName);
-      const configPath = path.join(pluginPath, 'config.json');
-      const indexPath = path.join(pluginPath, 'index.ts');
-
-      // 检查必要文件
-      await fs.access(configPath);
-      await fs.access(indexPath);
-
-      // 加载插件配置
-      const configContent = await fs.readFile(configPath, 'utf-8');
-      const config = JSON.parse(configContent);
-
-      // 动态导入插件
-      const pluginModule = await import(indexPath);
-      const PluginClass = pluginModule.default || pluginModule[config.className];
-
-      if (!PluginClass) {
-        throw new Error(`Plugin class not found: ${config.className}`);
-      }
-
-      // 创建插件实例
-      const pluginInstance = new PluginClass(tenantName) as TenantPlugin;
-      
-      // 初始化插件
-      await pluginInstance.init(this.context);
-
-      // 注册插件
-      const loadedPlugin: LoadedPlugin = {
-        name: `${tenantName}-tenant`,
-        type: 'tenant',
-        instance: pluginInstance,
-        path: pluginPath,
-        loadedAt: new Date()
-      };
-
-      this.loadedPlugins.set(loadedPlugin.name, loadedPlugin);
-
-      logger.info('Tenant plugin loaded', {
-        name: loadedPlugin.name,
-        path: pluginPath
-      });
-
-      this.emit('pluginLoaded', loadedPlugin);
-    } catch (error) {
-      logger.error(`Failed to load tenant plugin: ${tenantName}`, error);
-    }
-  }
-
-  /**
-   * 加载单个设备插件
-   */
-  private async loadDevicePlugin(deviceType: string): Promise<void> {
-    try {
-      const pluginPath = path.join(this.pluginsPath, 'devices', deviceType);
-      const configPath = path.join(pluginPath, 'config.json');
-      const indexPath = path.join(pluginPath, 'index.ts');
-
-      // 检查必要文件
-      await fs.access(configPath);
-      await fs.access(indexPath);
-
-      // 加载插件配置
-      const configContent = await fs.readFile(configPath, 'utf-8');
-      const config = JSON.parse(configContent);
-
-      // 动态导入插件
-      const pluginModule = await import(indexPath);
-      const PluginClass = pluginModule.default || pluginModule[config.className];
-
-      if (!PluginClass) {
-        throw new Error(`Plugin class not found: ${config.className}`);
-      }
-
-      // 创建插件实例
-      const pluginInstance = new PluginClass(deviceType) as DevicePlugin;
-      
-      // 初始化插件
-      await pluginInstance.init(this.context);
-
-      // 注册插件
-      const loadedPlugin: LoadedPlugin = {
-        name: `${deviceType}-device`,
-        type: 'device',
-        instance: pluginInstance,
-        path: pluginPath,
-        loadedAt: new Date()
-      };
-
-      this.loadedPlugins.set(loadedPlugin.name, loadedPlugin);
-
-      logger.info('Device plugin loaded', {
-        name: loadedPlugin.name,
-        path: pluginPath
-      });
-
-      this.emit('pluginLoaded', loadedPlugin);
-    } catch (error) {
-      logger.error(`Failed to load device plugin: ${deviceType}`, error);
-    }
-  }
-
-  /**
-   * 获取所有已加载的插件
-   */
-  getLoadedPlugins(): LoadedPlugin[] {
-    return Array.from(this.loadedPlugins.values());
-  }
-
-  /**
-   * 获取指定类型的插件
-   */
-  getPluginsByType(type: 'tenant' | 'device'): LoadedPlugin[] {
-    return Array.from(this.loadedPlugins.values()).filter(p => p.type === type);
-  }
-
-  /**
-   * 获取指定名称的插件
-   */
-  getPlugin(name: string): LoadedPlugin | undefined {
-    return this.loadedPlugins.get(name);
-  }
-
-  /**
-   * 重新加载插件
-   */
-  async reloadPlugin(name: string): Promise<void> {
-    const plugin = this.loadedPlugins.get(name);
-    if (!plugin) {
-      throw new Error(`Plugin not found: ${name}`);
-    }
-
-    try {
-      // 卸载插件
-      await plugin.instance.shutdown();
-      this.loadedPlugins.delete(name);
-
-      // 重新加载
-      if (plugin.type === 'tenant') {
-        const tenantName = name.replace('-tenant', '');
-        await this.loadTenantPlugin(tenantName);
-      } else {
-        const deviceType = name.replace('-device', '');
-        await this.loadDevicePlugin(deviceType);
-      }
-
-      logger.info('Plugin reloaded', { name });
-    } catch (error) {
-      logger.error(`Failed to reload plugin: ${name}`, error);
+      this.logger.error('Failed to initialize plugin system', { error });
       throw error;
     }
   }
@@ -287,18 +51,171 @@ export class PluginLoader extends EventEmitter {
    * 卸载所有插件
    */
   async unloadAllPlugins(): Promise<void> {
-    const plugins = Array.from(this.loadedPlugins.values());
+    try {
+      for (const [deviceType, plugin] of this.loadedPlugins) {
+        try {
+          if (typeof plugin.shutdown === 'function') {
+            await plugin.shutdown();
+          }
+          this.pluginManager.unregisterDevicePlugin(deviceType);
+        } catch (error) {
+          this.logger.error(`Failed to unload plugin ${deviceType}`, { error });
+        }
+      }
+      
+      this.loadedPlugins.clear();
+      this.logger.info('All plugins unloaded');
+    } catch (error) {
+      this.logger.error('Failed to unload all plugins', { error });
+    }
+  }
+
+  /**
+   * 加载租户插件
+   */
+  private async loadTenantPlugins(): Promise<void> {
+    const tenantsPath = path.join(this.pluginDir, 'tenants');
     
-    for (const plugin of plugins) {
+    if (!fs.existsSync(tenantsPath)) {
+      this.logger.warn('Tenants plugins directory not found');
+      return;
+    }
+
+    const tenantDirs = fs.readdirSync(tenantsPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    this.logger.info(`Found ${tenantDirs.length} tenant plugin directories:`, tenantDirs);
+    
+    // TODO: 实现租户插件加载逻辑
+  }
+
+  /**
+   * 加载所有设备插件
+   */
+  async loadDevicePlugins(): Promise<void> {
+    const devicesPath = path.join(__dirname, '../plugins/devices');
+    
+    if (!fs.existsSync(devicesPath)) {
+      this.logger.warn('Devices plugins directory not found');
+      return;
+    }
+
+    const deviceDirs = fs.readdirSync(devicesPath, { withFileTypes: true })
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+    this.logger.info(`Found ${deviceDirs.length} device plugin directories:`, deviceDirs);
+
+    for (const deviceDir of deviceDirs) {
       try {
-        await plugin.instance.shutdown();
-        this.loadedPlugins.delete(plugin.name);
-        logger.info('Plugin unloaded', { name: plugin.name });
+        await this.loadDevicePlugin(deviceDir);
       } catch (error) {
-        logger.error(`Failed to unload plugin: ${plugin.name}`, error);
+        this.logger.error(`Failed to load device plugin ${deviceDir}:`, error);
       }
     }
   }
+
+  /**
+   * 加载单个设备插件
+   */
+  private async loadDevicePlugin(deviceDir: string): Promise<void> {
+    const pluginPath = path.join(__dirname, '../plugins/devices', deviceDir, 'index.ts');
+    
+    if (!fs.existsSync(pluginPath)) {
+      this.logger.warn(`Plugin index file not found: ${pluginPath}`);
+      return;
+    }
+
+    try {
+      // 动态导入插件
+      const pluginModule = await import(pluginPath);
+      const PluginClass = pluginModule.default || pluginModule[Object.keys(pluginModule)[0]];
+      
+      if (!PluginClass) {
+        this.logger.warn(`No default export found in ${pluginPath}`);
+        return;
+      }
+
+      // 创建插件实例
+      const plugin = new PluginClass();
+      
+      if (!plugin.deviceType) {
+        this.logger.warn(`Plugin ${deviceDir} does not have deviceType property`);
+        return;
+      }
+
+      // 注册插件
+      this.pluginManager.registerDevicePlugin(plugin);
+      this.loadedPlugins.set(plugin.deviceType, plugin);
+      
+      this.logger.info(`Device plugin loaded: ${plugin.deviceType} (${deviceDir})`);
+    } catch (error) {
+      this.logger.error(`Error loading plugin ${deviceDir}:`, error);
+    }
+  }
+
+  /**
+   * 获取已加载的插件
+   */
+  getLoadedPlugins(): Array<{ name: string; instance: DevicePlugin }> {
+    const plugins: Array<{ name: string; instance: DevicePlugin }> = [];
+    for (const [deviceType, plugin] of this.loadedPlugins) {
+      plugins.push({
+        name: deviceType,
+        instance: plugin
+      });
+    }
+    return plugins;
+  }
+
+  /**
+   * 获取已加载的插件Map
+   */
+  getLoadedPluginsMap(): Map<string, DevicePlugin> {
+    return this.loadedPlugins;
+  }
+
+  /**
+   * 重新加载所有插件
+   */
+  async reloadPlugins(): Promise<void> {
+    this.logger.info('Reloading all plugins...');
+    
+    // 清理现有插件
+    for (const [deviceType, plugin] of this.loadedPlugins) {
+      try {
+        await plugin.shutdown();
+        this.pluginManager.unregisterDevicePlugin(deviceType);
+      } catch (error) {
+        this.logger.error(`Error shutting down plugin ${deviceType}:`, error);
+      }
+    }
+    
+    this.loadedPlugins.clear();
+    
+    // 重新加载
+    await this.loadDevicePlugins();
+    
+    this.logger.info(`Plugin reload completed. Loaded ${this.loadedPlugins.size} plugins.`);
+  }
+
+  /**
+   * 获取插件统计信息
+   */
+  getPluginStats(): {
+    totalPlugins: number;
+    loadedPlugins: string[];
+    supportedDeviceTypes: string[];
+  } {
+    return {
+      totalPlugins: this.loadedPlugins.size,
+      loadedPlugins: Array.from(this.loadedPlugins.keys()),
+      supportedDeviceTypes: this.pluginManager.getSupportedDeviceTypes()
+    };
+  }
 }
 
-export const pluginLoader = PluginLoader.getInstance();
+// 全局插件加载器实例
+import { pluginManager } from './plugin-manager';
+export const pluginLoader = new PluginLoader(pluginManager);

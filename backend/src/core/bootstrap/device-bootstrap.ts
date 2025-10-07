@@ -171,7 +171,7 @@ export async function generateBootstrapConfig(deviceInfo: BootstrapRequest) {
 /**
  * 解析租户信息 - 通用实现
  */
-async function resolveTenant(deviceInfo: BootstrapRequest): Promise<string> {
+export async function resolveTenant(deviceInfo: BootstrapRequest): Promise<string> {
   // 优先使用设备提供的租户信息
   if (deviceInfo.tenant_info?.tenant_id) {
     return deviceInfo.tenant_info.tenant_id;
@@ -208,48 +208,19 @@ async function resolveTenant(deviceInfo: BootstrapRequest): Promise<string> {
 /**
  * 确定设备类型 - 通用实现
  */
-function determineDeviceType(deviceInfo: BootstrapRequest): string {
-  // 优先使用设备指定的类型
-  if (deviceInfo.device_type) {
-    return deviceInfo.device_type;
-  }
-  
-  // 根据板卡名称推断类型
-  if (deviceInfo.board_name) {
-    if (deviceInfo.board_name.includes('PS-1000')) return 'powersafe-datacenter';
-    if (deviceInfo.board_name.includes('PS-2000')) return 'powersafe-industrial';
-    if (deviceInfo.board_name.includes('PS-3000')) return 'powersafe-residential';
-    if (deviceInfo.board_name.includes('PS-')) return 'powersafe-generic';
-    
-    // 其他设备类型
-    if (deviceInfo.board_name.includes('ESP32')) return 'esp32-generic';
-    if (deviceInfo.board_name.includes('Arduino')) return 'arduino-generic';
-    if (deviceInfo.board_name.includes('Raspberry')) return 'raspberry-pi';
-  }
-  
-  return 'generic-device';
+export function determineDeviceType(deviceInfo: BootstrapRequest): string {
+  // 使用插件管理器识别设备类型
+  return pluginManager.identifyDeviceType(deviceInfo);
 }
 
 /**
  * 提取设备能力 - 通用实现
  */
-function extractDeviceCapabilities(deviceInfo: BootstrapRequest): string[] {
-  const capabilities = ['telemetry', 'status', 'commands', 'ota'];
+function extractDeviceCapabilities(deviceInfo: BootstrapRequest, deviceType: string): string[] {
+  // 使用插件管理器提取设备能力
+  const capabilities = pluginManager.extractDeviceCapabilities(deviceInfo, deviceType);
   
-  // 根据设备类型添加特定能力
-  if (deviceInfo.board_name?.includes('PS-1000')) {
-    capabilities.push('high-frequency-sampling', 'data-center-mode');
-  }
-  
-  if (deviceInfo.board_name?.includes('PS-2000')) {
-    capabilities.push('industrial-grade', 'extended-temperature');
-  }
-  
-  if (deviceInfo.board_name?.includes('PS-3000')) {
-    capabilities.push('low-power-mode', 'residential-grade');
-  }
-  
-  // 添加设备指定的能力
+  // 添加设备明确指定的能力
   if (deviceInfo.capabilities && Array.isArray(deviceInfo.capabilities)) {
     capabilities.push(...deviceInfo.capabilities);
   }

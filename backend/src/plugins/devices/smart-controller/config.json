@@ -1,0 +1,15 @@
+{
+  "id": "smart-controller",
+  "name": "智能控制器",
+  "version": "1.0.0",
+  "description": "智能控制器设备插件",
+  "enabled": true,
+  "deviceType": "smart-controller",
+  "protocols": ["mqtt", "websocket"],
+  "features": {
+    "dataCollection": true,
+    "remoteControl": true,
+    "ota": true,
+    "alerts": true
+  }
+}

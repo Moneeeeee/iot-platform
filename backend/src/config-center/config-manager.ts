@@ -4,12 +4,12 @@
  */
 
 import { EventEmitter } from 'events';
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { TenantConfigService } from './tenant-config';
-import { DeviceConfigService } from './device-config';
-import { MQTTConfigService } from './mqtt-config';
-import { OTAConfigService } from './ota-config';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { TenantConfigService } from '@/config-center/tenant-config';
+import { DeviceConfigService } from '@/config-center/device-config';
+import { MQTTConfigService } from '@/config-center/mqtt-config';
+import { OTAConfigService } from '@/config-center/ota-config';
 
 export interface ConfigUpdateEvent {
   type: 'tenant' | 'device' | 'mqtt' | 'ota';

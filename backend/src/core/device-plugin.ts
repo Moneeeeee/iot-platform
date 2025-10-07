@@ -5,7 +5,7 @@
 
 import { Router } from 'express';
 import { DevicePlugin, PluginConfig, PluginContext, PluginRoute, PluginService } from './plugin-interface';
-import { logger } from '../common/logger';
+import { logger } from '@/common/logger';
 
 export abstract class BaseDevicePlugin implements DevicePlugin {
   readonly deviceType: string;
@@ -15,6 +15,32 @@ export abstract class BaseDevicePlugin implements DevicePlugin {
   constructor(deviceType: string, config: PluginConfig) {
     this.deviceType = deviceType;
     this.config = config;
+  }
+
+  /**
+   * 检查设备是否匹配此插件 - 默认实现
+   */
+  matchesDevice(deviceInfo: any): boolean {
+    // 默认实现：检查设备类型是否匹配
+    return deviceInfo.device_type === this.deviceType;
+  }
+
+  /**
+   * 提取设备特定能力 - 默认实现
+   */
+  extractDeviceCapabilities(deviceInfo: any): string[] {
+    return this.getDefaultCapabilities();
+  }
+
+  /**
+   * 生成设备特定配置 - 默认实现
+   */
+  generateDeviceConfig(deviceInfo: any, baseConfig: any): any {
+    return {
+      ...baseConfig,
+      deviceType: this.deviceType,
+      capabilities: this.extractDeviceCapabilities(deviceInfo)
+    };
   }
 
   /**

@@ -1,4 +1,12 @@
 /**
+ * ⚠️ LEGACY ENTRY - DO NOT USE ⚠️
+ * This file has been deprecated and moved to _legacy directory.
+ * Use src/index.ts instead, which uses IoTPlatformServer from core/server.ts
+ */
+
+throw new Error("LEGACY ENTRY - DO NOT USE. Use src/index.ts instead. This file will cause duplicate server initialization and port conflicts.");
+
+/**
  * IoT 平台主应用
  * 集成核心模块、配置中心、插件系统
  */
@@ -15,44 +23,41 @@ import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
 
 // 导入核心模块
-import { authService } from './core/security/auth';
-import { credentialsService } from './core/security/credentials';
-import { protocolAdapter } from './core/mqtt/adapters';
-import { shadowService } from './core/shadow';
-import { rateLimiter } from './core/middleware/rate-limiter';
-import { idempotencyService } from './core/middleware/idempotency';
-import { serviceContainer } from './core/db/container';
+import { authService } from '@/core/security/auth';
+import { credentialsService } from '@/core/security/credentials';
+// 协议适配器现在通过ProtocolManager统一管理
+import { shadowService } from '@/core/shadow';
+import { rateLimiter } from '@/core/middleware/rate-limiter';
+import { idempotencyService } from '@/core/middleware/idempotency';
+import { serviceContainer } from '@/core/db/container';
 
 // 导入配置中心
-import { configManager } from './config-center/config-manager';
+import { configManager } from '@/config-center/config-manager';
 
 // 导入插件系统
-import { PluginLoader } from './core/plugin-loader';
+import { PluginLoader } from '@/core/plugin-loader';
 
 // 导入现有服务
-import { db } from './common/config/database';
-import { logger, httpLogger } from './common/logger';
+import { db } from '@/common/config/database';
+import { logger, httpLogger } from '@/common/logger';
 import { 
   globalErrorHandler, 
   notFound, 
   handleUncaughtException, 
   handleUnhandledRejection 
-} from './core/middleware/errorHandler';
+} from '@/core/middleware/errorHandler';
 
 // 导入路由
-import authRoutes from './api/auth';
-import userRoutes from './api/users';
-import deviceRoutes from './api/devices';
-import systemRoutes from './api/system';
-import powersafeRoutes from './api/powersafe';
-import deviceBootstrapRoutes from './api/device-bootstrap';
+import authRoutes from '@/api/auth';
+import userRoutes from '@/api/users';
+import deviceRoutes from '@/api/devices';
+import systemRoutes from '@/api/system';
+import deviceBootstrapRoutes from '@/api/device-bootstrap';
 
 // 导入服务
-import { MQTTService } from './core/mqtt';
-import { UDPService } from './core/udp';
-import { WebSocketService } from './core/websocket';
-import { AlertService } from './core/alert';
-import { healthService } from './core/health';
+import { AlertService } from '@/core/alert';
+import { healthService } from '@/core/health';
+import { ProtocolManager } from '@/core/protocols/protocol-manager';
 
 // 加载环境变量
 dotenv.config();
@@ -116,9 +121,6 @@ export class IoTPlatformApp {
       serviceContainer.register('configManager', () => configManager);
 
       // 注册现有服务
-      serviceContainer.register('mqttService', () => new MQTTService());
-      serviceContainer.register('udpService', () => new UDPService());
-      serviceContainer.register('wsService', () => new WebSocketService(this.io));
       serviceContainer.register('alertService', () => new AlertService());
       serviceContainer.register('healthService', () => healthService);
 
@@ -158,7 +160,9 @@ export class IoTPlatformApp {
         }
       };
 
-      await protocolAdapter.initialize();
+      // 初始化协议管理器
+      const protocolManager = ProtocolManager.getInstance(adapterConfig as any);
+      await protocolManager.initialize();
 
       // 初始化插件系统
       await this.pluginLoader.initialize();
@@ -347,7 +351,6 @@ export class IoTPlatformApp {
     this.app.use('/api/users', authService.requirePermission('user:read'), userRoutes);
     this.app.use('/api/devices', authService.requirePermission('device:read'), deviceRoutes);
     this.app.use('/api/system', authService.requirePermission('system:config'), systemRoutes);
-    this.app.use('/api/powersafe', powersafeRoutes);
     this.app.use('/api/device', deviceBootstrapRoutes);
 
     // 加载插件路由
@@ -457,7 +460,8 @@ export class IoTPlatformApp {
       await serviceContainer.shutdownAll();
 
       // 关闭协议适配器
-      await protocolAdapter.shutdown();
+      const protocolManager = ProtocolManager.getInstance();
+      await protocolManager.shutdown();
 
       // 关闭HTTP服务器
       this.server.close(() => {

@@ -8,9 +8,9 @@
  * 5. 数据降采样
  */
 
-import { prisma } from '../common/config/database';
-import { logger } from '../common/logger';
-import { AppError } from '../common/errors';
+import { prisma } from '@/common/config/database';
+import { logger } from '@/common/logger';
+import { AppError } from '@/core/middleware/errorHandler';
 
 // ==========================================
 // 策略定义类型

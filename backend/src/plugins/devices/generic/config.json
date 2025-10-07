@@ -1,0 +1,15 @@
+{
+  "id": "generic",
+  "name": "通用设备",
+  "version": "1.0.0",
+  "description": "通用IoT设备插件",
+  "enabled": true,
+  "deviceType": "generic",
+  "protocols": ["mqtt", "websocket", "udp"],
+  "features": {
+    "dataCollection": true,
+    "remoteControl": true,
+    "ota": true,
+    "alerts": true
+  }
+}

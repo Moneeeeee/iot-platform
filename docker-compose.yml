@@ -88,9 +88,12 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
-      - emqx
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      emqx:
+        condition: service_healthy
     networks:
       - iot-network
     restart: unless-stopped

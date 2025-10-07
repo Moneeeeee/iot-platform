@@ -4,7 +4,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../common/logger';
+import { logger } from '@/common/logger';
 
 export interface ServiceDefinition {
   name: string;

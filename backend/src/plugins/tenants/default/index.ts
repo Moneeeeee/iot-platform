@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { BaseTenantPlugin } from '../../../core/tenant-plugin';
-import { PluginConfig, PluginContext, PluginRoute, PluginService } from '../../../core/plugin-interface';
+import { BaseTenantPlugin } from '@/core/tenant-plugin';
+import { PluginConfig, PluginContext, PluginRoute, PluginService } from '@/core/plugin-interface';
 
 const pluginConfig: PluginConfig = {
   name: "default-tenant-plugin",

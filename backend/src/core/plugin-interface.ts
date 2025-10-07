@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { ConfigManager } from '../config-center/config-manager';
+import { ConfigManager } from '@/config-center/config-manager';
 
 export interface PluginConfig {
   name: string;
@@ -83,6 +83,28 @@ export interface DevicePlugin extends IPlugin {
    * 设备类型
    */
   readonly deviceType: string;
+
+  /**
+   * 检查设备是否匹配此插件
+   * @param deviceInfo 设备信息
+   * @returns 是否匹配此设备类型
+   */
+  matchesDevice(deviceInfo: any): boolean;
+
+  /**
+   * 提取设备特定能力
+   * @param deviceInfo 设备信息
+   * @returns 设备能力列表
+   */
+  extractDeviceCapabilities(deviceInfo: any): string[];
+
+  /**
+   * 生成设备特定配置
+   * @param deviceInfo 设备信息
+   * @param baseConfig 基础配置
+   * @returns 设备特定配置
+   */
+  generateDeviceConfig(deviceInfo: any, baseConfig: any): any;
 
   /**
    * 设备模板定义

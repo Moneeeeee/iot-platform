@@ -17,8 +17,6 @@
 
 ### 🔌 API和集成
 - **[API文档](./api/README.md)** - RESTful API接口文档
-- **[PowerSafe API文档](./api/PowerSafe-API.md)** - PowerSafe设备专用API
-- **[PowerSafe设备文档](./api/powersafe-README.md)** - PowerSafe设备详细文档
 
 ### 📊 运维和监控
 - **[管理工具文档](./management/README.md)** - 现代化CLI管理工具

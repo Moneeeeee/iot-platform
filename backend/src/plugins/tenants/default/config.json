@@ -1,0 +1,19 @@
+{
+  "id": "default",
+  "name": "默认租户",
+  "version": "1.0.0",
+  "description": "系统默认租户配置",
+  "enabled": true,
+  "features": {
+    "mqtt": true,
+    "websocket": true,
+    "udp": true,
+    "ota": true,
+    "alerts": true
+  },
+  "settings": {
+    "theme": "default",
+    "language": "zh-CN",
+    "timezone": "Asia/Shanghai"
+  }
+}
