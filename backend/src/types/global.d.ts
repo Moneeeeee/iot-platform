@@ -4,6 +4,7 @@
 export interface TenantContext {
   id: string;
   name?: string;
+  timezone?: string;
   [k: string]: any;
 }
 

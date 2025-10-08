@@ -1,0 +1,204 @@
+# MQTT 主题模板配置
+# 统一主题命名规范和模板定义
+
+# 主题命名规范
+naming_convention:
+  # 基础格式
+  base_format: "iot/{tenant}/{deviceType}/{deviceId}/{channel}"
+  
+  # 子通道格式
+  subchannel_format: "iot/{tenant}/{deviceType}/{deviceId}/{channel}/{subchannel}"
+  
+  # 子设备格式
+  subdevice_format: "iot/{tenant}/{deviceType}/{deviceId}/subdev/{subDeviceId}/{channel}"
+  
+  # 版本化格式
+  versioned_format: "iot/v{version}/{tenant}/{deviceType}/{deviceId}/{channel}"
+
+# 通道类型定义
+channels:
+  telemetry:
+    description: "遥测数据"
+    qos_default: 0
+    retain_default: false
+    frequency: "high"
+    
+  status:
+    description: "设备状态"
+    qos_default: 1
+    retain_default: true
+    frequency: "medium"
+    
+  event:
+    description: "事件通知"
+    qos_default: 1
+    retain_default: false
+    frequency: "low"
+    
+  cmd:
+    description: "命令下发"
+    qos_default: 1
+    retain_default: false
+    frequency: "on_demand"
+    
+  cmdres:
+    description: "命令响应"
+    qos_default: 1
+    retain_default: false
+    frequency: "on_demand"
+    
+  cfg:
+    description: "配置下发"
+    qos_default: 1
+    retain_default: true
+    frequency: "low"
+    
+  shadow:
+    description: "设备影子"
+    subchannels:
+      desired:
+        description: "期望状态"
+        qos_default: 1
+        retain_default: true
+      reported:
+        description: "报告状态"
+        qos_default: 0
+        retain_default: false
+    frequency: "medium"
+    
+  ota:
+    description: "OTA升级"
+    subchannels:
+      progress:
+        description: "升级进度"
+        qos_default: 1
+        retain_default: false
+      result:
+        description: "升级结果"
+        qos_default: 1
+        retain_default: false
+    frequency: "low"
+
+# 设备类型映射
+device_types:
+  ps-ctrl:
+    display_name: "PowerSafe控制器"
+    category: "control"
+    supports_subdevices: false
+    
+  dtu:
+    display_name: "DTU设备"
+    category: "industrial"
+    supports_subdevices: false
+    
+  rtu:
+    display_name: "RTU设备"
+    category: "industrial"
+    supports_subdevices: false
+    
+  ftu:
+    display_name: "FTU设备"
+    category: "industrial"
+    supports_subdevices: false
+    
+  sensor:
+    display_name: "传感器节点"
+    category: "sensor"
+    supports_subdevices: false
+    
+  gateway:
+    display_name: "网关设备"
+    category: "gateway"
+    supports_subdevices: true
+
+# 主题模板
+templates:
+  # 基础设备主题模板
+  device_base:
+    telemetry: "iot/{tenant}/{deviceType}/{deviceId}/telemetry"
+    status: "iot/{tenant}/{deviceType}/{deviceId}/status"
+    event: "iot/{tenant}/{deviceType}/{deviceId}/event"
+    cmd: "iot/{tenant}/{deviceType}/{deviceId}/cmd"
+    cmdres: "iot/{tenant}/{deviceType}/{deviceId}/cmdres"
+    cfg: "iot/{tenant}/{deviceType}/{deviceId}/cfg"
+    
+  # 影子设备主题模板
+  device_shadow:
+    desired: "iot/{tenant}/{deviceType}/{deviceId}/shadow/desired"
+    reported: "iot/{tenant}/{deviceType}/{deviceId}/shadow/reported"
+    
+  # OTA主题模板
+  device_ota:
+    progress: "iot/{tenant}/{deviceType}/{deviceId}/ota/progress"
+    result: "iot/{tenant}/{deviceType}/{deviceId}/ota/result"
+    
+  # 网关子设备主题模板
+  gateway_subdevice:
+    telemetry: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/telemetry"
+    status: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/status"
+    event: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/event"
+    cmd: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/cmd"
+    cmdres: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/cmdres"
+    cfg: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/cfg"
+    shadow_desired: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/shadow/desired"
+    shadow_reported: "iot/{tenant}/gateway/{deviceId}/subdev/{subDeviceId}/shadow/reported"
+
+# 通配符模式
+wildcard_patterns:
+  # 租户级别通配符
+  tenant_all: "iot/{tenant}/+/+/+"
+  tenant_device_type: "iot/{tenant}/{deviceType}/+/+"
+  tenant_device: "iot/{tenant}/+/{deviceId}/+"
+  
+  # 全局通配符
+  global_all: "iot/+/+/+/+"
+  global_device_type: "iot/+/{deviceType}/+/+"
+  global_channel: "iot/+/+/+/{channel}"
+  
+  # 子设备通配符
+  subdevice_all: "iot/{tenant}/gateway/{deviceId}/subdev/+/+"
+  subdevice_channel: "iot/{tenant}/gateway/{deviceId}/subdev/+/{channel}"
+
+# 主题验证规则
+validation:
+  # 长度限制
+  max_length: 200
+  min_length: 10
+  
+  # 字符限制
+  allowed_characters: "[a-zA-Z0-9_/+-]"
+  forbidden_patterns:
+    - "//"  # 连续斜杠
+    - "/$"  # 结尾斜杠
+    - "^/"  # 开头斜杠
+    
+  # 必填字段
+  required_fields:
+    - tenant
+    - deviceType
+    - deviceId
+    - channel
+    
+  # 可选字段
+  optional_fields:
+    - subchannel
+    - subDeviceId
+    - version
+
+# 主题版本管理
+versioning:
+  # 当前版本
+  current_version: "1"
+  
+  # 版本格式
+  version_format: "v{version}"
+  
+  # 向后兼容
+  backward_compatibility:
+    enabled: true
+    supported_versions: ["1"]
+    
+  # 迁移策略
+  migration:
+    auto_migrate: false
+    migration_window: "02:00-06:00"

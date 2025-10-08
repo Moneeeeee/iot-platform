@@ -8,7 +8,12 @@ export async function authJwt(
   reply: FastifyReply
 ): Promise<void> {
   // 跳过认证的路径
-  const skipPaths = ['/healthz', '/api/healthz', '/api/status'];
+  const skipPaths = [
+    '/healthz', 
+    '/api/healthz', 
+    '/api/status',
+    '/api/config/bootstrap'  // 设备引导接口不需要认证
+  ];
   if (skipPaths.includes(request.url.split('?')[0] || '')) {
     return;
   }

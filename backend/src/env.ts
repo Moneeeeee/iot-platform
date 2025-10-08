@@ -33,6 +33,8 @@ type Env = {
 
   METRICS_ENABLED: boolean;
   METRICS_PATH: string;
+
+  DEFAULT_TIMEZONE: string; // IANA timezone, e.g., "Asia/Shanghai"
 };
 
 function bool(v: any, d = false) {
@@ -66,6 +68,8 @@ const envFromProcess: Env = {
 
   METRICS_ENABLED: bool(process.env['METRICS_ENABLED'], false),
   METRICS_PATH: process.env['METRICS_PATH'] ?? "/metrics",
+
+  DEFAULT_TIMEZONE: process.env['DEFAULT_TIMEZONE'] ?? "UTC",
 };
 
 // optional structured config
@@ -89,6 +93,9 @@ if (fs.existsSync(CONFIG_PATH)) {
 
     envFromProcess.METRICS_ENABLED = bool(process.env['METRICS_ENABLED'], !!doc?.metrics?.enabled);
     envFromProcess.METRICS_PATH = process.env['METRICS_PATH'] ?? doc?.metrics?.path ?? envFromProcess.METRICS_PATH;
+
+    // default timezone from config
+    envFromProcess.DEFAULT_TIMEZONE = process.env['DEFAULT_TIMEZONE'] ?? doc?.i18n?.default_timezone ?? envFromProcess.DEFAULT_TIMEZONE;
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(`Failed to parse ${CONFIG_PATH}:`, e);

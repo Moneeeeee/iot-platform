@@ -15,11 +15,13 @@ datasource db {
 model Tenant {
   id        String   @id @default(cuid())
   name      String
+  timezone  String   @default("UTC") // IANA 时区标识，例如 "Asia/Shanghai"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // 关联
   devices Device[]
+  deviceBootstrapRecords DeviceBootstrapRecord[]
 
   @@map("tenants")
 }
@@ -35,8 +37,18 @@ model Device {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // 设备详细信息
+  mac         String?  // MAC地址
+  firmware    String?  // 固件版本
+  firmwareBuild String? // 固件构建号
+  firmwareChannel String? // 固件发布通道 (stable/beta/dev)
+  hardware    String?  // 硬件版本
+  hardwareSerial String? // 硬件序列号
+
   // 关联
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  capabilities DeviceCapability[]
+  bootstrapRecords DeviceBootstrapRecord[]
 
   @@map("devices")
 }
@@ -52,4 +64,55 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+// 设备能力模型
+model DeviceCapability {
+  id        String   @id @default(cuid())
+  deviceId  String
+  name      String   // 能力名称，如 "temperature_sensor"
+  version   String?  // 能力版本
+  params    Json?    // 能力参数，JSON格式存储
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, name]) // 每个设备的能力名称唯一
+  @@map("device_capabilities")
+}
+
+// 设备引导记录模型
+model DeviceBootstrapRecord {
+  id              String   @id @default(cuid())
+  deviceId        String
+  tenantId        String
+  configVersion   String   @default("1.0.0") // 配置版本
+  issuedAt        DateTime @default(now())   // 发布时间
+  expiresAt       DateTime                   // 过期时间
+  signature       String                     // 响应签名
+  configSnapshot  Json                       // 配置快照，存储完整的引导响应
+  mqttCredentials Json?                      // MQTT凭证信息
+  otaDecision     Json?                      // OTA决策信息
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // 关联
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, issuedAt]) // 每个设备的引导记录按时间唯一
+  @@map("device_bootstrap_records")
+}
+
+// 遥测数据模型（时序数据表）
+model TelemetryData {
+  id        String   @id @default(cuid())
+  deviceId  String
+  timestamp DateTime @default(now())
+  data      Json     // 遥测数据，JSON格式存储
+
+  @@index([deviceId, timestamp]) // 复合索引，优化查询性能
+  @@map("telemetry_data")
 }

@@ -8,6 +8,7 @@ import { HealthService } from '@/infrastructure/health/health.service';
 import { tenantResolver } from '@/core/middlewares/tenant-resolver';
 import { authJwt } from '@/core/middlewares/auth-jwt';
 import { idempotency } from '@/core/middlewares/idempotency';
+import { createStartupConfig } from '@/infrastructure/config/app-startup.config';
 
 // 创建 Fastify 实例
 const fastify: FastifyInstance = Fastify({
@@ -44,6 +45,70 @@ async function registerPlugins() {
   const compress = await import('@fastify/compress');
   await fastify.register(compress.default);
 
+  // Swagger 文档
+  const swagger = await import('@fastify/swagger');
+  await fastify.register(swagger.default, {
+    openapi: {
+      openapi: '3.0.0',
+      info: {
+        title: 'IoT Platform API',
+        description: 'IoT设备管理平台API文档',
+        version: '2.0.0',
+        contact: {
+          name: 'IoT Platform Team',
+          email: 'support@iot-platform.com'
+        }
+      },
+      servers: [
+        {
+          url: `http://localhost:${env.PORT}`,
+          description: 'Development server'
+        }
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT'
+          }
+        }
+      },
+      tags: [
+        {
+          name: 'bootstrap',
+          description: '设备引导相关接口'
+        },
+        {
+          name: 'devices',
+          description: '设备管理相关接口'
+        },
+        {
+          name: 'health',
+          description: '健康检查接口'
+        }
+      ]
+    }
+  });
+
+  // Swagger UI
+  const swaggerUi = await import('@fastify/swagger-ui');
+  await fastify.register(swaggerUi.default, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false
+    },
+    uiHooks: {
+      onRequest: function (_request: any, _reply: any, next: any) { next() },
+      preHandler: function (_request: any, _reply: any, next: any) { next() }
+    },
+    staticCSP: true,
+    transformStaticCSP: (_header: any) => _header,
+    transformSpecification: (_swaggerObject: any, _request: any, _reply: any) => { return _swaggerObject },
+    transformSpecificationClone: true
+  });
+
   // WebSocket 支持
   const websocket = await import('@fastify/websocket');
   await fastify.register(websocket.default);
@@ -54,19 +119,210 @@ async function registerRoutes() {
   const deviceService = new DeviceService();
   const healthService = new HealthService();
 
+  // 注册引导服务路由
+  await fastify.register(import('@/routes/bootstrap.routes'));
+
   // 健康检查端点 - 包含依赖探测
-  fastify.get('/healthz', async (_request, reply) => {
-    const health = await healthService.getHealthStatus();
-    return reply.status(health.ok ? 200 : 503).send(health);
+  fastify.get('/healthz', {
+    schema: {
+      description: '系统健康检查接口',
+      tags: ['health'],
+      summary: '检查系统健康状态',
+      response: {
+        200: {
+          description: '系统健康',
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            status: { type: 'string' },
+            timestamp: { type: 'string' },
+            utcTimestamp: { type: 'string' },
+            localTime: {
+              type: 'object',
+              properties: {
+                timezone: { type: 'string' },
+                iso: { type: 'string' },
+                formatted: { type: 'string' },
+                epochMs: { type: 'number' },
+                utcOffsetMinutes: { type: 'number' }
+              }
+            },
+            uptime: { type: 'number' },
+            services: {
+              type: 'object',
+              properties: {
+                database: { type: 'boolean' },
+                redis: { type: 'boolean' },
+                mqtt: { type: 'boolean' }
+              }
+            }
+          }
+        },
+        503: {
+          description: '系统不健康',
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            status: { type: 'string' },
+            timestamp: { type: 'string' },
+            utcTimestamp: { type: 'string' },
+            localTime: {
+              type: 'object',
+              properties: {
+                timezone: { type: 'string' },
+                iso: { type: 'string' },
+                formatted: { type: 'string' },
+                epochMs: { type: 'number' },
+                utcOffsetMinutes: { type: 'number' }
+              }
+            },
+            errors: {
+              type: 'array',
+              items: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const tzParam = (request.query as any)?.timezone || request.headers['x-timezone'];
+    const tzTenant = request.tenant?.timezone;
+    const tz = (tzParam as string) || tzTenant || env.DEFAULT_TIMEZONE;
+    const health = await healthService.getHealthStatus(tz);
+    const payload = {
+      ok: health.ok,
+      status: health.ok ? 'healthy' : 'unhealthy',
+      // timestamp 显示本地时区 ISO，utcTimestamp 保留UTC
+      timestamp: health.localTime.iso,
+      utcTimestamp: health.timestamp,
+      localTime: health.localTime,
+      uptime: process.uptime(),
+      services: {
+        database: health.deps.postgres.connected,
+        redis: health.deps.redis.connected,
+        mqtt: health.deps.mqtt.connected
+      }
+    };
+    return reply.status(health.ok ? 200 : 503).send(payload);
   });
 
-  fastify.get('/api/healthz', async (_request, reply) => {
-    const health = await healthService.getHealthStatus();
-    return reply.status(health.ok ? 200 : 503).send(health);
+  fastify.get('/api/healthz', {
+    schema: {
+      description: 'API健康检查接口',
+      tags: ['health'],
+      summary: '检查API服务健康状态',
+      response: {
+        200: {
+          description: 'API健康',
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            status: { type: 'string' },
+            timestamp: { type: 'string' },
+            utcTimestamp: { type: 'string' },
+            localTime: {
+              type: 'object',
+              properties: {
+                timezone: { type: 'string' },
+                iso: { type: 'string' },
+                formatted: { type: 'string' },
+                epochMs: { type: 'number' },
+                utcOffsetMinutes: { type: 'number' }
+              }
+            },
+            uptime: { type: 'number' },
+            services: {
+              type: 'object',
+              properties: {
+                database: { type: 'boolean' },
+                redis: { type: 'boolean' },
+                mqtt: { type: 'boolean' }
+              }
+            }
+          }
+        },
+        503: {
+          description: 'API不健康',
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            status: { type: 'string' },
+            timestamp: { type: 'string' },
+            utcTimestamp: { type: 'string' },
+            localTime: {
+              type: 'object',
+              properties: {
+                timezone: { type: 'string' },
+                iso: { type: 'string' },
+                formatted: { type: 'string' },
+                epochMs: { type: 'number' },
+                utcOffsetMinutes: { type: 'number' }
+              }
+            },
+            errors: {
+              type: 'array',
+              items: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const tzParam = (request.query as any)?.timezone || request.headers['x-timezone'];
+    const tzTenant = request.tenant?.timezone;
+    const tz = (tzParam as string) || tzTenant || env.DEFAULT_TIMEZONE;
+    const health = await healthService.getHealthStatus(tz);
+    const payload = {
+      ok: health.ok,
+      status: health.ok ? 'healthy' : 'unhealthy',
+      timestamp: health.localTime.iso,
+      utcTimestamp: health.timestamp,
+      localTime: health.localTime,
+      uptime: process.uptime(),
+      services: {
+        database: health.deps.postgres.connected,
+        redis: health.deps.redis.connected,
+        mqtt: health.deps.mqtt.connected
+      }
+    };
+    return reply.status(health.ok ? 200 : 503).send(payload);
   });
 
   // 基础 API 路由
-  fastify.get('/api/status', async (_request) => {
+  fastify.get('/api/status', {
+    schema: {
+      description: '获取系统状态信息',
+      tags: ['health'],
+      summary: '获取系统运行状态和配置信息',
+      response: {
+        200: {
+          description: '系统状态信息',
+          type: 'object',
+          properties: {
+            status: { type: 'string', description: '系统状态' },
+            environment: { type: 'string', description: '运行环境' },
+            features: {
+              type: 'object',
+              description: '功能开关',
+              properties: {
+                ota: { type: 'boolean', description: 'OTA功能' },
+                ruleEngine: { type: 'boolean', description: '规则引擎' },
+                aggregates: { type: 'boolean', description: '聚合功能' }
+              }
+            },
+            profiles: {
+              type: 'object',
+              description: '配置档案',
+              properties: {
+                data: { type: 'string', description: '数据档案' },
+                frontend: { type: 'string', description: '前端路由配置' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (_request) => {
     return {
       status: 'running',
       environment: env.NODE_ENV,
@@ -80,6 +336,77 @@ async function registerRoutes() {
         frontend: env.FRONTEND_ROUTER
       }
     };
+  });
+
+  // 简易租户API：更新租户时区
+  fastify.patch('/api/tenants/:tenantId/timezone', {
+    schema: {
+      description: '更新租户时区',
+      tags: ['tenants'],
+      params: {
+        type: 'object',
+        properties: { tenantId: { type: 'string' } },
+        required: ['tenantId']
+      },
+      body: {
+        type: 'object',
+        properties: { timezone: { type: 'string' } },
+        required: ['timezone']
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: { success: { type: 'boolean' }, timezone: { type: 'string' } }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    const { timezone } = request.body as { timezone: string };
+    try {
+      const prisma = (await import('@/infrastructure/db/prisma')).getPrismaClient();
+      await prisma.tenant.update({ where: { id: tenantId }, data: { timezone } });
+      return { success: true, timezone };
+    } catch (e) {
+      return reply.status(400).send({ success: false, error: 'Failed to update timezone' });
+    }
+  });
+
+  // 新增：获取租户信息
+  fastify.get('/api/tenants/:tenantId', {
+    schema: {
+      description: '获取租户信息',
+      tags: ['tenants'],
+      params: {
+        type: 'object',
+        properties: { tenantId: { type: 'string' } },
+        required: ['tenantId']
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            timezone: { type: 'string' }
+          }
+        },
+        404: {
+          type: 'object',
+          properties: { error: { type: 'string' } }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    try {
+      const prisma = (await import('@/infrastructure/db/prisma')).getPrismaClient();
+      const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true, timezone: true } });
+      if (!tenant) return reply.status(404).send({ error: 'Tenant not found' });
+      return tenant;
+    } catch (e) {
+      return reply.status(400).send({ error: 'Failed to fetch tenant' });
+    }
   });
 
   // WebSocket 路由
@@ -129,14 +456,31 @@ async function start() {
     
     // 2. 注册全局中间件
     fastify.addHook('preHandler', tenantResolver);
-    fastify.addHook('preHandler', authJwt);
+    // 跳过 /docs 及其静态资源的鉴权
+    fastify.addHook('preHandler', async (request, reply) => {
+      const url = request.url || '';
+      if (url.startsWith('/docs')) {
+        return; // skip auth for swagger
+      }
+      await authJwt(request, reply);
+    });
     fastify.addHook('preHandler', idempotency);
     
     // 3. 初始化基础设施
     await connectRedis();
     await AdapterFactory.initializeAdapters();
     
-    // 4. 最后注册路由
+    // 4. 初始化MQTT配置和策略注册器
+    console.log('🔧 Initializing MQTT configuration...');
+    const startupConfig = createStartupConfig({
+      configPath: 'configs/mqtt',
+      enableEmqxAcl: true,
+      warmupTenants: ['default', 'demo', 'test'],
+      enableHotReload: env.NODE_ENV === 'development'
+    });
+    await startupConfig.initialize(fastify);
+    
+    // 5. 最后注册路由
     await registerRoutes();
 
     await fastify.listen({

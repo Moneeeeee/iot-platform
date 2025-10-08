@@ -1,0 +1,174 @@
+# MQTT QoS策略配置
+# 按设备类型和消息类型定义QoS和Retain策略
+
+device_types:
+  sensor:
+    default_qos: 0
+    allow_retain: false
+    channels:
+      telemetry:
+        qos: 0
+        retain: false
+        reason: "low_power_optimization"
+      status:
+        qos: 1
+        retain: true
+        reason: "status_persistence"
+      event:
+        qos: 1
+        retain: false
+        reason: "event_reliability"
+      cmd:
+        qos: 1
+        retain: false
+        reason: "command_reliability"
+      shadow:
+        desired:
+          qos: 1
+          retain: true
+          reason: "shadow_desired_persistence"
+        reported:
+          qos: 0
+          retain: false
+          reason: "low_power_shadow"
+      cfg:
+        qos: 1
+        retain: true
+        reason: "config_persistence"
+      ota:
+        progress:
+          qos: 1
+          retain: false
+          reason: "ota_progress_reliability"
+
+  gateway:
+    default_qos: 1
+    allow_retain: true
+    channels:
+      telemetry:
+        qos: 1
+        retain: false
+        reason: "standard_telemetry"
+      status:
+        qos: 1
+        retain: true
+        reason: "status_persistence"
+      event:
+        qos: 1
+        retain: false
+        reason: "event_reliability"
+      cmd:
+        qos: 1
+        retain: false
+        reason: "command_reliability"
+      shadow:
+        desired:
+          qos: 1
+          retain: true
+          reason: "shadow_desired_persistence"
+        reported:
+          qos: 1
+          retain: false
+          reason: "standard_shadow"
+      cfg:
+        qos: 1
+        retain: true
+        reason: "config_persistence"
+      ota:
+        progress:
+          qos: 1
+          retain: false
+          reason: "ota_progress_reliability"
+
+  ps-ctrl:
+    default_qos: 1
+    allow_retain: true
+    channels:
+      telemetry:
+        qos: 1
+        retain: false
+        reason: "control_device_telemetry"
+      status:
+        qos: 1
+        retain: true
+        reason: "status_persistence"
+      event:
+        qos: 1
+        retain: false
+        reason: "event_reliability"
+      cmd:
+        qos: 1
+        retain: false
+        reason: "command_reliability"
+      shadow:
+        desired:
+          qos: 1
+          retain: true
+          reason: "shadow_desired_persistence"
+        reported:
+          qos: 1
+          retain: false
+          reason: "standard_shadow"
+      cfg:
+        qos: 1
+        retain: true
+        reason: "config_persistence"
+      ota:
+        progress:
+          qos: 1
+          retain: false
+          reason: "ota_progress_reliability"
+
+  dtu:
+  rtu:
+  ftu:
+    default_qos: 1
+    allow_retain: true
+    channels:
+      telemetry:
+        qos: 1
+        retain: false
+        reason: "industrial_device_telemetry"
+      status:
+        qos: 1
+        retain: true
+        reason: "status_persistence"
+      event:
+        qos: 1
+        retain: false
+        reason: "event_reliability"
+      cmd:
+        qos: 1
+        retain: false
+        reason: "command_reliability"
+      shadow:
+        desired:
+          qos: 1
+          retain: true
+          reason: "shadow_desired_persistence"
+        reported:
+          qos: 1
+          retain: false
+          reason: "standard_shadow"
+      cfg:
+        qos: 1
+        retain: true
+        reason: "config_persistence"
+      ota:
+        progress:
+          qos: 1
+          retain: false
+          reason: "ota_progress_reliability"
+
+# 全局策略
+global:
+  max_qos: 1
+  default_retain: false
+  low_power_devices:
+    - sensor
+  high_reliability_devices:
+    - gateway
+    - ps-ctrl
+    - dtu
+    - rtu
+    - ftu

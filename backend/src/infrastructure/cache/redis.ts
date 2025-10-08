@@ -109,4 +109,13 @@ export class CacheService {
     const result = await this.client.xread(args as any);
     return result || [];
   }
+
+  // 测试环境清理方法
+  async flushdb(): Promise<void> {
+    await this.client.flushdb();
+  }
+
+  async flushall(): Promise<void> {
+    await this.client.flushall();
+  }
 }

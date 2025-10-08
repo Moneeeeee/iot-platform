@@ -1,0 +1,134 @@
+# MQTT ACL策略配置
+# 定义设备访问控制列表，确保设备只能访问自己的主题
+
+# 基础ACL规则
+base_rules:
+  # 允许发布的主题模式
+  publish_patterns:
+    - "iot/{tenant}/{deviceType}/{deviceId}/telemetry"
+    - "iot/{tenant}/{deviceType}/{deviceId}/status"
+    - "iot/{tenant}/{deviceType}/{deviceId}/event"
+    - "iot/{tenant}/{deviceType}/{deviceId}/cmdres"
+    - "iot/{tenant}/{deviceType}/{deviceId}/shadow/reported"
+    - "iot/{tenant}/{deviceType}/{deviceId}/ota/progress"
+
+  # 允许订阅的主题模式
+  subscribe_patterns:
+    - "iot/{tenant}/{deviceType}/{deviceId}/cmd"
+    - "iot/{tenant}/{deviceType}/{deviceId}/shadow/desired"
+    - "iot/{tenant}/{deviceType}/{deviceId}/cfg"
+
+  # 拒绝访问的主题模式
+  deny_patterns:
+    - "iot/+/+/+/admin/+"
+    - "iot/+/+/+/system/+"
+    - "iot/+/+/+/debug/+"
+    - "iot/+/+/+/internal/+"
+
+# 设备类型特定规则
+device_type_rules:
+  gateway:
+    # 网关可以访问子设备主题
+    additional_publish:
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/telemetry"
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/status"
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/event"
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/cmdres"
+    
+    additional_subscribe:
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/cmd"
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/shadow/desired"
+      - "iot/{tenant}/gateway/{deviceId}/subdev/+/cfg"
+
+  sensor:
+    # 传感器设备限制更严格
+    restrictions:
+      - "iot/{tenant}/sensor/{deviceId}/subdev/+"
+      - "iot/{tenant}/sensor/{deviceId}/gateway/+"
+
+  ps-ctrl:
+  dtu:
+  rtu:
+  ftu:
+    # 控制设备可以访问更多主题
+    additional_publish:
+      - "iot/{tenant}/{deviceType}/{deviceId}/control/+"
+      - "iot/{tenant}/{deviceType}/{deviceId}/alarm/+"
+    
+    additional_subscribe:
+      - "iot/{tenant}/{deviceType}/{deviceId}/control/+"
+      - "iot/{tenant}/{deviceType}/{deviceId}/schedule/+"
+
+# 租户级别规则
+tenant_rules:
+  # 默认租户规则
+  default:
+    allow_cross_tenant: false
+    allow_admin_topics: false
+    max_topics_per_device: 20
+
+  # 高级租户规则
+  premium:
+    allow_cross_tenant: false
+    allow_admin_topics: true
+    max_topics_per_device: 50
+    additional_patterns:
+      publish:
+        - "iot/{tenant}/admin/{deviceId}/+"
+      subscribe:
+        - "iot/{tenant}/admin/{deviceId}/+"
+
+# 安全策略
+security:
+  # 主题验证
+  topic_validation:
+    enabled: true
+    max_topic_length: 200
+    allowed_characters: "[a-zA-Z0-9_/+-]"
+    
+  # 权限检查
+  permission_check:
+    enabled: true
+    cache_ttl: 300  # 5分钟缓存
+    strict_mode: true
+    
+  # 审计日志
+  audit_logging:
+    enabled: true
+    log_level: "info"
+    log_topics:
+      - "publish_denied"
+      - "subscribe_denied"
+      - "permission_check"
+
+# 通配符规则
+wildcard_rules:
+  # 单级通配符 +
+  single_level:
+    - "iot/+/+/+/telemetry"
+    - "iot/+/+/+/status"
+    - "iot/+/+/+/event"
+  
+  # 多级通配符 #
+  multi_level:
+    - "iot/+/+/+/shadow/#"
+    - "iot/+/+/+/ota/#"
+    - "iot/+/+/+/subdev/#"
+
+# 特殊权限
+special_permissions:
+  # 系统服务权限
+  system_services:
+    username_pattern: "system_*"
+    allowed_topics:
+      - "iot/+/+/+/system/+"
+      - "iot/+/+/+/admin/+"
+      - "iot/+/+/+/internal/+"
+  
+  # 监控服务权限
+  monitoring_services:
+    username_pattern: "monitor_*"
+    allowed_topics:
+      - "iot/+/+/+/telemetry"
+      - "iot/+/+/+/status"
+      - "iot/+/+/+/event"

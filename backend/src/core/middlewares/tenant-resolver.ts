@@ -1,5 +1,6 @@
 // Core Layer - 租户解析中间件
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { getPrismaClient } from '@/infrastructure/db/prisma';
 
 export async function tenantResolver(
   request: FastifyRequest,
@@ -33,10 +34,18 @@ export async function tenantResolver(
   }
 
   // 设置租户上下文
-  request.tenant = {
-    id: tenantId,
-    name: tenantId
-  };
+  const prisma = getPrismaClient();
+  let timezone: string | undefined;
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    timezone = tenant?.timezone;
+  } catch (_e) {
+    // 忽略查询失败，使用默认
+  }
+
+  const baseTenant: any = { id: tenantId, name: tenantId };
+  if (timezone) baseTenant.timezone = timezone;
+  request.tenant = baseTenant;
 
   // 添加租户信息到响应头
   reply.header('X-Tenant-ID', tenantId);
