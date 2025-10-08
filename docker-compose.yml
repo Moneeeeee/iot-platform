@@ -89,7 +89,7 @@ services:
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Shanghai}
       TZ: ${TZ:-Asia/Shanghai}
     volumes:
-      - ./configs:/app/configs:ro
+      - ./backend/configs:/app/configs:ro
       - ./docker/backend/config.yaml:/app/config.yaml:ro
     depends_on:
       postgres:

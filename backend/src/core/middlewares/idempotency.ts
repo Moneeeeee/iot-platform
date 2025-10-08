@@ -14,12 +14,12 @@ export async function idempotency(
     return;
   }
 
-  const messageId = request.headers['x-message-id'] as string;
+  let messageId = request.headers['x-message-id'] as string;
   
+  // 如果没有提供X-Message-Id，使用默认值
   if (!messageId) {
-    return reply.status(400).send({ 
-      error: 'X-Message-Id header is required for idempotent operations' 
-    });
+    messageId = 'default';
+    console.log('⚠️  未提供X-Message-Id，使用默认值:', messageId);
   }
 
   const cacheKey = `idempotency:${messageId}`;

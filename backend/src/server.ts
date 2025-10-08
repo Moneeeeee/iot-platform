@@ -19,7 +19,21 @@ const fastify: FastifyInstance = Fastify({
 
 // 注册插件
 async function registerPlugins() {
-  // CORS - 验证 origin 配置
+  // 1️⃣ JSON body 支持（最重要，必须在所有插件之前）
+  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    try { 
+      const bodyStr = typeof body === 'string' ? body : body.toString();
+      done(null, JSON.parse(bodyStr)); 
+    } catch (err) { 
+      done(err as Error, undefined); 
+    }
+  });
+
+  // 2️⃣ 表单 body 支持
+  const formbody = await import('@fastify/formbody');
+  await fastify.register(formbody.default);
+
+  // 3️⃣ CORS - 验证 origin 配置
   const cors = await import('@fastify/cors');
   const corsOrigin = env.CORS_ORIGIN;
   
@@ -34,18 +48,14 @@ async function registerPlugins() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'X-Message-Id']
   });
 
-  // 安全头 - 放宽策略避免影响 WS/前端
+  // 4️⃣ 安全头 - 放宽策略避免影响 WS/前端
   const helmet = await import('@fastify/helmet');
   await fastify.register(helmet.default, {
     contentSecurityPolicy: false,
     crossOriginResourcePolicy: false
   });
 
-  // 压缩
-  const compress = await import('@fastify/compress');
-  await fastify.register(compress.default);
-
-  // Swagger 文档
+  // 5️⃣ Swagger 文档
   const swagger = await import('@fastify/swagger');
   await fastify.register(swagger.default, {
     openapi: {
@@ -91,7 +101,7 @@ async function registerPlugins() {
     }
   });
 
-  // Swagger UI
+  // 6️⃣ Swagger UI
   const swaggerUi = await import('@fastify/swagger-ui');
   await fastify.register(swaggerUi.default, {
     routePrefix: '/docs',
@@ -109,7 +119,7 @@ async function registerPlugins() {
     transformSpecificationClone: true
   });
 
-  // WebSocket 支持
+  // 7️⃣ WebSocket 支持
   const websocket = await import('@fastify/websocket');
   await fastify.register(websocket.default);
 }

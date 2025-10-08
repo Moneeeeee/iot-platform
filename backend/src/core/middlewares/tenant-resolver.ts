@@ -2,51 +2,46 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getPrismaClient } from '@/infrastructure/db/prisma';
 
-export async function tenantResolver(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
-  // 从多种来源解析租户 ID
+export async function tenantResolver(request: FastifyRequest, reply: FastifyReply) {
   let tenantId: string | undefined;
 
-  // 1. 从子域名解析 (tenant.example.com)
-  const host = request.headers.host;
-  if (host) {
-    const subdomain = host.split('.')[0];
-    if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
-      tenantId = subdomain;
+  // ✅ 1. 仅从请求体中解析
+  if (request.body && typeof request.body === 'object') {
+    const body = request.body as any;
+    if (body.tenantId && typeof body.tenantId === 'string') {
+      tenantId = body.tenantId.trim();
+      console.log('🏢 从请求体解析租户ID:', tenantId);
     }
   }
 
-  // 2. 从 X-Tenant-ID 头部解析
-  if (!tenantId) {
-    tenantId = request.headers['x-tenant-id'] as string;
-  }
-
-  // 3. 从查询参数解析 (fallback)
-  if (!tenantId) {
-    tenantId = (request.query as any)?.tenantId;
-  }
-
-  // 4. 默认租户 (开发环境)
+  // ✅ 2. 没有就统一走 default
   if (!tenantId) {
     tenantId = 'default';
+    console.log('🏢 使用默认租户ID:', tenantId);
   }
 
-  // 设置租户上下文
+  // ✅ 3. 数据库中查找或创建租户
   const prisma = getPrismaClient();
-  let timezone: string | undefined;
-  try {
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    timezone = tenant?.timezone;
-  } catch (_e) {
-    // 忽略查询失败，使用默认
+  let tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+
+  if (!tenant) {
+    console.log(`🏗️ 租户 ${tenantId} 不存在，创建中...`);
+    tenant = await prisma.tenant.create({
+      data: {
+        id: tenantId,
+        name: tenantId === 'default' ? 'Default Tenant' : `${tenantId} Tenant`,
+        timezone: 'Asia/Shanghai',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
   }
 
-  const baseTenant: any = { id: tenantId, name: tenantId };
-  if (timezone) baseTenant.timezone = timezone;
-  request.tenant = baseTenant;
+  request.tenant = {
+    id: tenant.id,
+    name: tenant.name,
+    timezone: tenant.timezone,
+  };
 
-  // 添加租户信息到响应头
   reply.header('X-Tenant-ID', tenantId);
 }

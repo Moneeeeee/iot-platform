@@ -43,13 +43,13 @@ export const TestUsers = {
   tenantUser: {
     userId: 'tenant-user-001',
     email: 'tenant-user@example.com',
-    roles: [UserRoles.TENANT_USER],
+    roles: ['tenant_user'] as string[],
     tenantId: 'default'
   },
   device: {
     userId: 'device-001',
     email: 'device@iot-platform.com',
-    roles: [UserRoles.DEVICE],
+    roles: ['device'] as string[],
     tenantId: 'default'
   }
 } as const;
@@ -87,7 +87,12 @@ export class JwtTokenGenerator {
    */
   generateTestUserToken(userType: keyof typeof TestUsers, expiryHours?: number): string {
     const user = TestUsers[userType];
-    return this.generateToken(user, expiryHours);
+    return this.generateToken({
+      userId: user.userId,
+      email: user.email,
+      roles: [...user.roles],
+      tenantId: user.tenantId
+    }, expiryHours);
   }
 
   /**
@@ -104,7 +109,7 @@ export class JwtTokenGenerator {
       userId,
       email,
       roles,
-      tenantId
+      tenantId: tenantId || 'default'
     }, expiryHours);
   }
 

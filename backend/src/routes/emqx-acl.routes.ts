@@ -72,6 +72,10 @@ export class EmqxAclService {
     const tenantId = parts[0];
     const deviceId = parts[1];
     
+    if (!tenantId || !deviceId) {
+      return null;
+    }
+    
     return { tenantId, deviceId };
   }
 
@@ -88,9 +92,16 @@ export class EmqxAclService {
       return null;
     }
 
+    const tenantId = parts[0];
+    const deviceId = parts[1];
+    
+    if (!tenantId || !deviceId) {
+      return null;
+    }
+    
     return {
-      tenantId: parts[0],
-      deviceId: parts[1]
+      tenantId,
+      deviceId
     };
   }
 
@@ -114,12 +125,16 @@ export class EmqxAclService {
 
     const [, tenantId, deviceType, deviceId, channel, subchannel] = match;
     
+    if (!tenantId || !deviceType || !deviceId || !channel) {
+      return null;
+    }
+    
     return {
       tenantId,
       deviceType,
       deviceId,
       channel,
-      subchannel
+      ...(subchannel && { subchannel })
     };
   }
 
@@ -155,7 +170,7 @@ export class EmqxAclService {
         deviceId,
         deviceType,
         mac: '',
-        firmware: { current: '1.0.0', build: '001', minRequired: '1.0.0', channel: 'stable' },
+        firmware: { current: '1.0.0', build: '001', minRequired: '1.0.0', channel: 'stable' as const },
         hardware: { version: 'v1.0', serial: 'HW123' },
         capabilities: [],
         tenantId,
@@ -267,20 +282,14 @@ export async function registerEmqxAclRoutes(fastify: FastifyInstance) {
   });
 
   // EMQX认证接口（可选）
-  fastify.post('/emqx/auth', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/emqx/auth', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const authRequest = request.body as {
-        clientid: string;
-        username: string;
-        password: string;
-      };
-
-      // 这里可以实现设备认证逻辑
+      // TODO: 实现认证逻辑
       // 目前简单返回允许
-      reply.code(200).send({ result: 'allow' });
+      return reply.code(200).send({ result: 'allow' });
     } catch (error) {
       console.error('EMQX auth request error:', error);
-      reply.code(500).send({ result: 'deny', reason: 'Internal server error' });
+      return reply.code(500).send({ result: 'deny', reason: 'Internal server error' });
     }
   });
 
@@ -298,7 +307,7 @@ export async function registerEmqxAclRoutes(fastify: FastifyInstance) {
         deviceId,
         deviceType,
         mac: '',
-        firmware: { current: '1.0.0', build: '001', minRequired: '1.0.0', channel: 'stable' },
+        firmware: { current: '1.0.0', build: '001', minRequired: '1.0.0', channel: 'stable' as const },
         hardware: { version: 'v1.0', serial: 'HW123' },
         capabilities: [],
         tenantId,

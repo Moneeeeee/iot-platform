@@ -119,19 +119,60 @@ export class BootstrapService {
       // 3. 获取或创建设备记录
       const device = await this.ensureDeviceExists(request, tenantId);
 
-      // 4. 生成MQTT配置
+      // 检查信息完整性
+      const hasCompleteInfo = request.firmware?.current && request.firmware?.build && 
+                             request.hardware?.version && request.hardware?.serial;
+
+      // 4. 生成MQTT配置（始终提供）
+      console.log('Generating MQTT config...');
       const mqttConfig = await this.generateMqttConfig(device.id, tenantId, request);
+      console.log('MQTT config generated:', JSON.stringify(mqttConfig, null, 2));
 
-      // 5. 生成OTA配置
-      const otaConfig = await this.generateOtaConfig(device.id, tenantId, request);
+      // 5. 生成OTA配置（仅当有完整信息时）
+      let otaConfig;
+      if (hasCompleteInfo) {
+        console.log('Generating OTA config...');
+        otaConfig = await this.generateOtaConfig(device.id, tenantId, request);
+        console.log('OTA config generated:', JSON.stringify(otaConfig, null, 2));
+      } else {
+        console.log('⚠️  跳过OTA配置（信息不完整）');
+        otaConfig = { available: false, retry: { baseMs: 5000, maxMs: 60000 } };
+      }
 
-      // 6. 生成影子期望状态
-      const shadowDesired = await this.generateShadowDesired(device.id, tenantId, request);
+      // 6. 生成影子期望状态（仅当有完整信息时）
+      let shadowDesired: any;
+      if (hasCompleteInfo) {
+        console.log('Generating shadow desired...');
+        shadowDesired = await this.generateShadowDesired(device.id, tenantId, request);
+        console.log('Shadow desired generated:', JSON.stringify(shadowDesired, null, 2));
+      } else {
+        console.log('⚠️  跳过影子配置（信息不完整）');
+        shadowDesired = { 
+          reporting: { heartbeatMs: 60000 },
+          sensors: { samplingMs: 30000 },
+          thresholds: { voltage: { min: 3, max: 5 }, current: { min: 0, max: 2 } },
+          features: { alarmEnabled: true, autoRebootDays: 7 }
+        };
+      }
 
-      // 7. 生成策略配置
+      // 7. 生成策略配置（始终提供基础策略）
+      console.log('Generating policies...');
       const policies = await this.generatePolicies(tenantId, request);
+      console.log('Policies generated:', JSON.stringify(policies, null, 2));
 
       // 8. 构建响应数据
+      console.log('Building bootstrap response...');
+      console.log('About to call buildBootstrapResponse with:', {
+        deviceId: device.id,
+        tenantId,
+        requestKeys: Object.keys(request),
+        mqttConfigKeys: Object.keys(mqttConfig),
+        otaConfigKeys: Object.keys(otaConfig),
+        shadowDesiredKeys: Object.keys(shadowDesired),
+        policiesKeys: Object.keys(policies)
+      });
+      
+      console.log('=== BEFORE buildBootstrapResponse call ===');
       const responseData = await this.buildBootstrapResponse(
         device.id,
         tenantId,
@@ -141,17 +182,32 @@ export class BootstrapService {
         shadowDesired,
         policies
       );
-
       // 9. 构建响应封装
-      const envelope = await this.buildResponseEnvelope(responseData, device.id, tenantId);
+      try {
+        const envelope = await this.buildResponseEnvelope(responseData, device.id, tenantId);
 
-      // 10. 缓存引导记录和幂等性记录
-      await this.cacheBootstrapRecord(device.id, tenantId, envelope);
-      if (request.messageId) {
-        await this.cacheIdempotencyRecord(request.messageId, request.deviceId, tenantId, envelope);
+        // 10. 缓存引导记录和幂等性记录
+        try {
+          await this.cacheBootstrapRecord(device.id, tenantId, envelope);
+        } catch (cacheError) {
+          console.error('Failed to cache bootstrap record:', cacheError);
+          // 继续执行，不因为缓存失败而中断
+        }
+        
+        if (request.messageId) {
+          try {
+            await this.cacheIdempotencyRecord(request.messageId, request.deviceId, tenantId, envelope);
+          } catch (idempotencyError) {
+            console.error('Failed to cache idempotency record:', idempotencyError);
+            // 继续执行，不因为缓存失败而中断
+          }
+        }
+
+        return envelope;
+      } catch (envelopeError) {
+        console.error('Failed to build response envelope:', envelopeError);
+        throw envelopeError;
       }
-
-      return envelope;
     } catch (error) {
       console.error('Bootstrap request processing failed:', error);
       return await this.buildErrorEnvelope(
@@ -185,12 +241,14 @@ export class BootstrapService {
       errors.push('Device type is required');
     }
 
-    if (!request.firmware?.current) {
-      errors.push('Firmware version is required');
-    }
-
-    if (!request.firmware?.build) {
-      errors.push('Firmware build number is required');
+    // 可选字段验证（用于完整功能）
+    const hasCompleteInfo = request.firmware?.current && request.firmware?.build && 
+                           request.hardware?.version && request.hardware?.serial;
+    
+    if (!hasCompleteInfo) {
+      console.log('⚠️  设备提供基础信息，将使用最小化配置');
+    } else {
+      console.log('✅ 设备提供完整信息，将使用完整配置');
     }
 
     // 验证请求签名（如果提供）
@@ -201,26 +259,18 @@ export class BootstrapService {
       }
     }
 
-    // 验证设备是否属于指定租户
+    // 验证租户是否存在
     if (tenantId) {
-      const device = await this.prisma.device.findFirst({
-        where: { 
-          id: request.deviceId,
-          tenantId: tenantId
-        }
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId }
       });
 
-      if (!device) {
-        // 如果是新设备，需要进一步验证是否允许自动注册
-        const tenant = await this.prisma.tenant.findUnique({
-          where: { id: tenantId }
-        });
-
-        if (!tenant) {
-          errors.push('Invalid tenant ID');
-        }
+      if (!tenant) {
+        errors.push('Invalid tenant ID');
       }
     }
+
+    // 注意：不再验证设备是否已存在，允许自动注册新设备
 
     return {
       isValid: errors.length === 0,
@@ -357,24 +407,40 @@ export class BootstrapService {
     });
 
     if (!device) {
-      // 创建新设备记录
+      // 创建新设备记录（支持可选字段）
+      const deviceData: any = {
+        id: request.deviceId,
+        tenantId,
+        name: `${request.deviceType}-${request.mac.slice(-6)}`,
+        type: request.deviceType,
+        status: 'offline',
+        mac: request.mac,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // 添加可选字段（如果提供）
+      if (request.firmware?.current) {
+        deviceData.firmware = request.firmware.current;
+      }
+      if (request.firmware?.build) {
+        deviceData.firmwareBuild = request.firmware.build;
+      }
+      if (request.firmware?.channel) {
+        deviceData.firmwareChannel = request.firmware.channel;
+      }
+      if (request.hardware?.version) {
+        deviceData.hardware = request.hardware.version;
+      }
+      if (request.hardware?.serial) {
+        deviceData.hardwareSerial = request.hardware.serial;
+      }
+
       device = await this.prisma.device.create({
-        data: {
-          id: request.deviceId,
-          tenantId,
-          name: `${request.deviceType}-${request.mac.slice(-6)}`,
-          type: request.deviceType,
-          status: 'offline',
-          // TODO: 添加新字段支持，需要先运行数据库迁移
-          // mac: request.mac,
-          // firmware: request.firmware.current,
-          // firmwareBuild: request.firmware.build,
-          // hardware: request.hardware.version,
-          // hardwareSerial: request.hardware.serial,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
+        data: deviceData
       });
+      
+      console.log(`✅ 自动注册新设备: ${device.id} (${device.name})`);
     } else {
       // 更新现有设备信息
       device = await this.prisma.device.update({
@@ -392,7 +458,51 @@ export class BootstrapService {
       });
     }
 
+    // 注册设备能力
+    await this.registerDeviceCapabilities(device.id, request.capabilities);
+
     return device;
+  }
+
+  /**
+   * 注册设备能力
+   */
+  private async registerDeviceCapabilities(
+    deviceId: string,
+    capabilities: any[]
+  ): Promise<void> {
+    if (!capabilities || capabilities.length === 0) {
+      return;
+    }
+
+    for (const capability of capabilities) {
+      try {
+        await this.prisma.deviceCapability.upsert({
+          where: {
+            deviceId_name: {
+              deviceId,
+              name: capability.name
+            }
+          },
+          update: {
+            version: capability.version,
+            params: capability.params,
+            updatedAt: new Date()
+          },
+          create: {
+            deviceId,
+            name: capability.name,
+            version: capability.version,
+            params: capability.params,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+        console.log(`✅ 注册设备能力: ${capability.name} v${capability.version}`);
+      } catch (error) {
+        console.error(`❌ 注册设备能力失败: ${capability.name}`, error);
+      }
+    }
   }
 
   /**
@@ -656,8 +766,8 @@ export class BootstrapService {
           type: request.deviceType,
           uniqueId: request.mac,
           fw: request.firmware,
-          hw: request.hardware.version,
-          capabilities: request.capabilities.map(c => c.name)
+          hw: request.hardware?.version || 'unknown',
+          capabilities: request.capabilities?.map(c => c.name) || []
         }
       },
       mqtt: mqttConfig,
@@ -670,7 +780,7 @@ export class BootstrapService {
       },
       websocket: {
         enabled: true,
-        url: `${env.PUBLIC_ORIGIN}${env.WS_PATH}`,
+        url: `${env.PUBLIC_ORIGIN || 'ws://localhost:3000'}${env.WS_PATH || '/ws'}`,
         reconnectMs: 5000,
         heartbeatMs: 30000,
         timeoutMs: 60000
@@ -708,18 +818,24 @@ export class BootstrapService {
     deviceId: string,
     tenantId: string
   ): Promise<BootstrapResponseEnvelope> {
+    console.log('Building response envelope...');
     const now = Date.now();
     
     // 生成响应签名
+    console.log('Generating response signature...');
     const signature = await this.generateResponseSignature(responseData, deviceId, tenantId);
+    console.log('Response signature generated:', signature);
     
-    return {
+    const envelope = {
       code: 200,
       message: 'Bootstrap configuration generated successfully',
       timestamp: now,
       signature,
       data: responseData
     };
+    
+    console.log('Response envelope built:', JSON.stringify(envelope, null, 2));
+    return envelope;
   }
 
   /**

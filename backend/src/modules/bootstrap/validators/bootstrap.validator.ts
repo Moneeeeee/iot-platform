@@ -52,18 +52,18 @@ export class BootstrapValidator {
       errors.push('Device type is required and must be a non-empty string');
     }
 
-    // 固件信息验证
-    if (!this.validateFirmware(request.firmware)) {
+    // 固件信息验证（可选）
+    if (request.firmware !== undefined && !this.validateFirmware(request.firmware)) {
       errors.push('Firmware information is invalid');
     }
 
-    // 硬件信息验证
-    if (!this.validateHardware(request.hardware)) {
+    // 硬件信息验证（可选）
+    if (request.hardware !== undefined && !this.validateHardware(request.hardware)) {
       errors.push('Hardware information is invalid');
     }
 
-    // 能力列表验证
-    if (!this.validateCapabilities(request.capabilities)) {
+    // 能力列表验证（可选）
+    if (request.capabilities !== undefined && !this.validateCapabilities(request.capabilities)) {
       errors.push('Capabilities must be an array');
     }
 

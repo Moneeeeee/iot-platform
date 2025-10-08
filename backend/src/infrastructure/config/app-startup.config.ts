@@ -111,32 +111,33 @@ export class AppStartupConfig {
     console.log('🔄 Setting up configuration hot reload...');
     
     // 监听配置文件变化
-    const fs = require('fs');
-    const path = require('path');
-    
-    const configDir = path.resolve(this.options.configPath);
-    
-    fs.watch(configDir, { recursive: true }, async (eventType: string, filename: string) => {
-      if (filename && filename.endsWith('.yaml')) {
-        console.log(`📝 Configuration file changed: ${filename}`);
-        try {
-          await this.configLoader.reloadConfigs();
-          await this.policyRegistry.reload();
-          console.log('✅ Configuration reloaded successfully');
-        } catch (error) {
-          console.error('❌ Failed to reload configuration:', error);
-        }
-      }
+    import('fs').then(fs => {
+      import('path').then(path => {
+        const configDir = path.resolve(this.options.configPath);
+        
+        fs.watch(configDir, { recursive: true }, async (_eventType: string, filename: string | null) => {
+          if (filename && filename.endsWith('.yaml')) {
+            console.log(`📝 Configuration file changed: ${filename}`);
+            try {
+              await this.configLoader.reloadConfigs();
+              await this.policyRegistry.reload();
+              console.log('✅ Configuration reloaded successfully');
+            } catch (error) {
+              console.error('❌ Failed to reload configuration:', error);
+            }
+          }
+        });
+        
+        console.log('✅ Configuration hot reload enabled');
+      });
     });
-    
-    console.log('✅ Configuration hot reload enabled');
   }
 
   /**
    * 注册健康检查端点
    */
   private registerHealthCheck(fastify: FastifyInstance): void {
-    fastify.get('/health', async (request, reply) => {
+    fastify.get('/health', async (_request, reply) => {
       try {
         const stats = this.policyRegistry.getRegistryStats();
         const configLoaded = this.configLoader.isConfigLoaded();
@@ -165,7 +166,7 @@ export class AppStartupConfig {
       }
     });
 
-    fastify.get('/health/config', async (request, reply) => {
+    fastify.get('/health/config', async (_request, reply) => {
       try {
         const qosConfig = this.configLoader.getQosPolicyConfig();
         const aclConfig = this.configLoader.getAclPolicyConfig();

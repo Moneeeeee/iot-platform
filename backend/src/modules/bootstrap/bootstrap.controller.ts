@@ -416,9 +416,15 @@ export class BootstrapController {
     data: T,
     message: string = 'Success'
   ): Promise<void> {
-    const response: ControllerResponse<T> = {
+    // 如果data是BootstrapResponseEnvelope，提取其中的data字段
+    let responseData = data;
+    if (data && typeof data === 'object' && 'data' in data) {
+      responseData = (data as any).data;
+    }
+    
+    const response: ControllerResponse<any> = {
       success: true,
-      data,
+      data: responseData,
       message,
       timestamp: new Date().toISOString()
     };

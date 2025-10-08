@@ -14,7 +14,7 @@
  */
 
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { BootstrapController } from '@/modules/bootstrap/bootstrap.controller';
+import { BootstrapController } from '@/modules/bootstrap/bootstrap.controller.v2';
 
 /**
  * 引导服务路由插件
@@ -79,13 +79,12 @@ export async function bootstrapRoutes(
       summary: '获取设备引导配置',
       body: {
         type: 'object',
-        required: ['deviceId', 'mac', 'firmware', 'hardware', 'deviceType', 'timestamp'],
+        required: ['deviceId', 'mac', 'deviceType', 'timestamp'],
         properties: {
           deviceId: { type: 'string', description: '设备唯一标识符' },
           mac: { type: 'string', description: '设备MAC地址' },
           firmware: {
             type: 'object',
-            required: ['current', 'build'],
             properties: {
               current: { type: 'string', description: '当前固件版本' },
               build: { type: 'string', description: '固件构建号' },
@@ -99,7 +98,6 @@ export async function bootstrapRoutes(
           },
           hardware: {
             type: 'object',
-            required: ['version', 'serial'],
             properties: {
               version: { type: 'string', description: '硬件版本' },
               serial: { type: 'string', description: '硬件序列号' },
@@ -129,10 +127,14 @@ export async function bootstrapRoutes(
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' },
+            data: { 
+              type: 'object',
+              additionalProperties: true  // 允许额外的属性
+            },
             message: { type: 'string' },
             timestamp: { type: 'string' }
-          }
+          },
+          additionalProperties: true  // 允许额外的属性
         },
         400: {
           type: 'object',
@@ -140,7 +142,8 @@ export async function bootstrapRoutes(
             success: { type: 'boolean' },
             error: { type: 'string' },
             timestamp: { type: 'string' }
-          }
+          },
+          additionalProperties: true
         },
         500: {
           type: 'object',
@@ -187,7 +190,10 @@ export async function bootstrapRoutes(
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' },
+            data: { 
+              type: 'object',
+              additionalProperties: true
+            },
             message: { type: 'string' },
             timestamp: { type: 'string' }
           }
@@ -263,7 +269,6 @@ export async function bootstrapRoutes(
           mac: { type: 'string', description: '设备MAC地址' },
           firmware: {
             type: 'object',
-            required: ['current', 'build'],
             properties: {
               current: { type: 'string', description: '当前固件版本' },
               build: { type: 'string', description: '固件构建号' },
@@ -277,7 +282,6 @@ export async function bootstrapRoutes(
           },
           hardware: {
             type: 'object',
-            required: ['version', 'serial'],
             properties: {
               version: { type: 'string', description: '硬件版本' },
               serial: { type: 'string', description: '硬件序列号' },
@@ -307,7 +311,10 @@ export async function bootstrapRoutes(
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object' },
+            data: { 
+              type: 'object',
+              additionalProperties: true
+            },
             message: { type: 'string' },
             timestamp: { type: 'string' }
           }
