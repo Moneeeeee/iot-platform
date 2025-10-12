@@ -16,10 +16,10 @@ export async function idempotency(
 
   let messageId = request.headers['x-message-id'] as string;
   
-  // 如果没有提供X-Message-Id，使用默认值
+  // 如果没有提供X-Message-Id，跳过幂等性检查
   if (!messageId) {
-    messageId = 'default';
-    console.log('⚠️  未提供X-Message-Id，使用默认值:', messageId);
+    console.log('⚠️  未提供X-Message-Id，跳过幂等性检查');
+    return;
   }
 
   const cacheKey = `idempotency:${messageId}`;

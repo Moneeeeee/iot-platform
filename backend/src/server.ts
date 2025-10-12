@@ -9,6 +9,7 @@ import { tenantResolver } from '@/core/middlewares/tenant-resolver';
 import { authJwt } from '@/core/middlewares/auth-jwt';
 import { idempotency } from '@/core/middlewares/idempotency';
 import { createStartupConfig } from '@/infrastructure/config/app-startup.config';
+import { DeviceTypeManager } from '@/core/device-types/device-type-manager';
 
 // 创建 Fastify 实例
 const fastify: FastifyInstance = Fastify({
@@ -480,7 +481,12 @@ async function start() {
     await connectRedis();
     await AdapterFactory.initializeAdapters();
     
-    // 4. 初始化MQTT配置和策略注册器
+    // 4. 加载设备类型配置
+    console.log('📋 Loading device types configuration...');
+    const deviceTypeManager = DeviceTypeManager.getInstance();
+    await deviceTypeManager.loadConfig();
+    
+    // 5. 初始化MQTT配置和策略注册器
     console.log('🔧 Initializing MQTT configuration...');
     const startupConfig = createStartupConfig({
       configPath: 'configs/mqtt',
@@ -490,7 +496,7 @@ async function start() {
     });
     await startupConfig.initialize(fastify);
     
-    // 5. 最后注册路由
+    // 6. 最后注册路由
     await registerRoutes();
 
     await fastify.listen({
@@ -503,6 +509,10 @@ async function start() {
     fastify.log.info(`📊 Environment: ${env.NODE_ENV}`);
     fastify.log.info(`🔧 Data Profile: ${env.DATA_PROFILE}`);
     fastify.log.info(`🌐 CORS Origin: ${env.CORS_ORIGIN}`);
+    
+    // 显示支持的设备类型
+    const supportedTypes = deviceTypeManager.getSupportedDeviceTypes();
+    fastify.log.info(`📱 Supported device types: ${supportedTypes.join(', ')}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

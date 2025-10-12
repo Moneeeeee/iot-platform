@@ -1,0 +1,213 @@
+# 动态设备类型配置
+# 平台通过配置文件支持任何设备类型，无需修改代码
+
+# 设备类型定义
+device_types:
+  # PowerSafe 控制器
+  ps-ctrl:
+    display_name: "PowerSafe控制器"
+    category: "control"
+    description: "ESP32-S3 + 4G模块 + 温湿度传感器 + 火焰探头 + 气体传感器 + 电磁阀"
+    supports_subdevices: false
+    
+    # 默认能力模板
+    default_capabilities:
+      - name: "temperature_humidity_sensor"
+        type: "sensor"
+        description: "温湿度传感器"
+        params:
+          precision: { temperature: 0.1, humidity: 0.1 }
+          range: { temperature: [-40, 125], humidity: [0, 100] }
+      
+      - name: "analog_flame_detector"
+        type: "sensor"
+        description: "模拟火焰探测器"
+        params:
+          precision: 0.01
+          range: [0, 4095]
+          threshold: { normal: 100, warning: 500, danger: 1000 }
+      
+      - name: "gas_quality_sensor"
+        type: "sensor"
+        description: "气体质量传感器"
+        params:
+          precision: 0.1
+          range: [0, 1000]
+          threshold: { excellent: 50, good: 100, moderate: 200, poor: 500, hazardous: 1000 }
+      
+      - name: "voltage_sensor"
+        type: "sensor"
+        description: "电压传感器"
+        params:
+          precision: 0.01
+          range: [0, 5]
+          threshold: { low: 3.0, critical: 2.5 }
+      
+      - name: "solenoid_valve_control"
+        type: "control"
+        description: "电磁阀控制"
+        params:
+          count: 3
+          valves:
+            - { id: "valve_1", name: "主阀", description: "主要控制阀" }
+            - { id: "valve_2", name: "辅助阀1", description: "辅助控制阀1" }
+            - { id: "valve_3", name: "辅助阀2", description: "辅助控制阀2" }
+      
+      - name: "wifi_communication"
+        type: "communication"
+        description: "WiFi通信"
+        params:
+          bands: ["2.4GHz"]
+          protocols: ["TCP", "UDP", "MQTT", "HTTP", "HTTPS"]
+      
+      - name: "cellular_4g_communication"
+        type: "communication"
+        description: "4G蜂窝通信"
+        params:
+          bands: ["B1", "B3", "B5", "B8", "B20", "B28"]
+          protocols: ["TCP", "UDP", "MQTT", "HTTP", "HTTPS"]
+      
+      - name: "ota_support"
+        type: "system"
+        description: "OTA升级支持"
+        params:
+          methods: ["http", "mqtt"]
+      
+      - name: "shadow_support"
+        type: "system"
+        description: "设备影子支持"
+        params:
+          features: ["desired_state", "reported_state", "delta_processing"]
+      
+      - name: "low_power_mode"
+        type: "system"
+        description: "低功耗模式"
+        params:
+          modes: ["active", "sleep", "deep_sleep"]
+
+  # 通用传感器节点
+  sensor:
+    display_name: "传感器节点"
+    category: "sensor"
+    description: "通用传感器设备"
+    supports_subdevices: false
+    
+    default_capabilities:
+      - name: "temperature_sensor"
+        type: "sensor"
+        description: "温度传感器"
+        params:
+          precision: 0.1
+          range: [-40, 125]
+      
+      - name: "humidity_sensor"
+        type: "sensor"
+        description: "湿度传感器"
+        params:
+          precision: 0.1
+          range: [0, 100]
+      
+      - name: "voltage_sensor"
+        type: "sensor"
+        description: "电压传感器"
+        params:
+          precision: 0.01
+          range: [0, 5]
+
+  # 网关设备
+  gateway:
+    display_name: "网关设备"
+    category: "gateway"
+    description: "支持子设备的网关"
+    supports_subdevices: true
+    
+    default_capabilities:
+      - name: "wifi_communication"
+        type: "communication"
+        description: "WiFi通信"
+        params:
+          bands: ["2.4GHz", "5GHz"]
+          protocols: ["TCP", "UDP", "MQTT", "HTTP", "HTTPS"]
+      
+      - name: "ethernet_communication"
+        type: "communication"
+        description: "以太网通信"
+        params:
+          protocols: ["TCP", "UDP", "MQTT", "HTTP", "HTTPS"]
+      
+      - name: "subdevice_management"
+        type: "system"
+        description: "子设备管理"
+        params:
+          max_subdevices: 100
+          protocols: ["zigbee", "z-wave", "bluetooth", "wifi"]
+
+# 设备能力类型定义
+capability_types:
+  sensor:
+    description: "传感器能力"
+    data_format: "telemetry"
+    qos_default: 0
+    retain_default: false
+    
+  control:
+    description: "控制能力"
+    data_format: "command"
+    qos_default: 1
+    retain_default: false
+    
+  communication:
+    description: "通信能力"
+    data_format: "status"
+    qos_default: 1
+    retain_default: true
+    
+  system:
+    description: "系统能力"
+    data_format: "event"
+    qos_default: 1
+    retain_default: false
+
+# 数据格式模板
+data_formats:
+  telemetry:
+    description: "遥测数据格式"
+    required_fields: ["timestamp", "deviceId"]
+    optional_fields: ["sensors", "controls", "system"]
+    
+  command:
+    description: "控制命令格式"
+    required_fields: ["commandId", "timestamp"]
+    optional_fields: ["controls", "system", "config"]
+    
+  status:
+    description: "设备状态格式"
+    required_fields: ["timestamp", "deviceId", "status"]
+    optional_fields: ["connectivity", "power", "sensors", "controls"]
+    
+  event:
+    description: "事件格式"
+    required_fields: ["timestamp", "deviceId", "eventType"]
+    optional_fields: ["eventData", "severity", "source"]
+
+# 验证规则
+validation_rules:
+  device_type:
+    required: true
+    pattern: "^[a-z][a-z0-9_-]*$"
+    max_length: 50
+    
+  capability_name:
+    required: true
+    pattern: "^[a-z][a-z0-9_]*$"
+    max_length: 100
+    
+  mac_address:
+    required: true
+    pattern: "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+    
+  timestamp:
+    required: true
+    type: "number"
+    min_value: 0
+

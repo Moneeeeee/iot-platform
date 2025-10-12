@@ -8,6 +8,7 @@
 
 import { DeviceBootstrapRequest } from '../types';
 import { AppError, ErrorFactory } from '@/core/errors/app-error';
+import { DeviceTypeManager } from '@/core/device-types/device-type-manager';
 
 /**
  * 验证策略
@@ -85,18 +86,21 @@ export class BootstrapValidator {
       errors.push(ErrorFactory.validationError('Device ID is required and must be a non-empty string'));
     }
 
-    // MAC地址验证
-    if (!this.validateMacAddress(request.mac)) {
+    // MAC地址验证（使用动态配置）
+    const deviceTypeManager = DeviceTypeManager.getInstance();
+    if (!deviceTypeManager.validateMacAddress(request.mac)) {
       errors.push(ErrorFactory.validationError('MAC address is required and must be a valid format'));
     }
 
-    // 设备类型验证
-    if (!this.validateDeviceType(request.deviceType)) {
-      errors.push(ErrorFactory.validationError('Device type is required and must be a non-empty string'));
+    // 设备类型验证（使用动态配置）
+    if (!deviceTypeManager.validateDeviceType(request.deviceType)) {
+      errors.push(ErrorFactory.validationError('Device type is required and must be a valid format'));
+    } else if (!deviceTypeManager.isDeviceTypeSupported(request.deviceType)) {
+      errors.push(ErrorFactory.validationError(`Device type '${request.deviceType}' is not supported`));
     }
 
-    // 时间戳验证
-    if (!this.validateTimestamp(request.timestamp)) {
+    // 时间戳验证（使用动态配置）
+    if (!deviceTypeManager.validateTimestamp(request.timestamp)) {
       errors.push(ErrorFactory.validationError('Timestamp is required and must be a valid number'));
     }
   }
@@ -134,12 +138,16 @@ export class BootstrapValidator {
       }
     }
 
-    // 能力列表验证
-    if (request.capabilities !== undefined && !this.validateCapabilitiesStructure(request.capabilities)) {
-      if (_strategy.strict) {
-        errors.push(ErrorFactory.validationError('Capabilities must be an array'));
-      } else {
-        warnings.push('Capabilities format is invalid');
+    // 能力列表验证（使用动态配置）
+    if (request.capabilities !== undefined) {
+      const deviceTypeManager = DeviceTypeManager.getInstance();
+      const capabilityValidation = deviceTypeManager.validateCapabilities(request.capabilities);
+      if (!capabilityValidation.isValid) {
+        if (_strategy.strict) {
+          errors.push(ErrorFactory.validationError('Capabilities validation failed', capabilityValidation.errors));
+        } else {
+          warnings.push(`Capabilities validation failed: ${capabilityValidation.errors.join(', ')}`);
+        }
       }
     }
 
