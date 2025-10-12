@@ -1,54 +1,46 @@
-# Auth Service Dockerfile
-# Multi-stage build for optimized production image
-
-# ==================== Build Stage ====================
+# Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# 设置 npm 配置，减少内存和并发
+ENV NPM_CONFIG_LOGLEVEL=error
+ENV NPM_CONFIG_PROGRESS=false
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && \
-    npm cache clean --force
+# Install dependencies (use npm install since no package-lock.json)
+RUN npm install --quiet --no-audit --no-fund --production=false
 
 # Copy source code
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript with memory limit
+RUN NODE_OPTIONS="--max-old-space-size=512" npm run build
 
-# ==================== Production Stage ====================
+# Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Copy built files and dependencies
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy from builder
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
-
-# Switch to non-root user
 USER nodejs
 
 # Expose port
 EXPOSE 8001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \  
+  CMD node -e "require('http').get('http://localhost:8001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Use dumb-init to handle signals
-ENTRYPOINT ["dumb-init", "--"]
-
-# Start application
-CMD ["node", "dist/index.js"]
-
+# Start server
+CMD ["node", "dist/server.js"]
