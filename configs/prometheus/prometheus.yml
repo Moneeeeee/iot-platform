@@ -1,0 +1,203 @@
+# Prometheus 配置文件
+# Fountain IoT Platform
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'iot-platform'
+    environment: 'production'
+
+# 告警规则文件
+rule_files:
+  # - 'alerts/*.yml'
+
+# 告警管理器配置（可选）
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#             - alertmanager:9093
+
+# 抓取配置
+scrape_configs:
+  # ==================== Prometheus 自身 ====================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # ==================== Node Exporter（系统指标） ====================
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+
+  # ==================== PostgreSQL ====================
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+        labels:
+          service: 'postgres'
+
+  # ==================== Redis ====================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: 'redis'
+
+  # ==================== EMQX ====================
+  - job_name: 'emqx'
+    static_configs:
+      - targets: ['emqx:8081']
+        labels:
+          service: 'emqx'
+    metrics_path: '/api/v5/prometheus/stats'
+    scheme: http
+
+  # ==================== NATS ====================
+  - job_name: 'nats'
+    static_configs:
+      - targets: ['nats:7777']
+        labels:
+          service: 'nats'
+
+  # ==================== MinIO ====================
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+        labels:
+          service: 'minio'
+    metrics_path: '/minio/v2/metrics/cluster'
+    scheme: http
+
+  # ==================== Phase 1 服务 ====================
+  
+  # Auth Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8001']
+        labels:
+          service: 'auth-service'
+          phase: '1'
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Config Service
+  - job_name: 'config-service'
+    static_configs:
+      - targets: ['config-service:8002']
+        labels:
+          service: 'config-service'
+          phase: '1'
+    metrics_path: '/metrics'
+
+  # Device Service
+  - job_name: 'device-service'
+    static_configs:
+      - targets: ['device-service:8003']
+        labels:
+          service: 'device-service'
+          phase: '1'
+    metrics_path: '/metrics'
+
+  # Telemetry Service
+  - job_name: 'telemetry-service'
+    static_configs:
+      - targets: ['telemetry-service:8004']
+        labels:
+          service: 'telemetry-service'
+          phase: '1'
+    metrics_path: '/metrics'
+
+  # OTA Service
+  - job_name: 'ota-service'
+    static_configs:
+      - targets: ['ota-service:8005']
+        labels:
+          service: 'ota-service'
+          phase: '1'
+    metrics_path: '/metrics'
+
+  # Frontend
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['frontend:3000']
+        labels:
+          service: 'frontend'
+          phase: '1'
+    metrics_path: '/api/metrics'
+
+  # ==================== Phase 2 服务 ====================
+  
+  # Tenant Service
+  - job_name: 'tenant-service'
+    static_configs:
+      - targets: ['tenant-service:8006']
+        labels:
+          service: 'tenant-service'
+          phase: '2'
+    metrics_path: '/metrics'
+
+  # Protocol Gateway
+  - job_name: 'protocol-gateway'
+    static_configs:
+      - targets: ['protocol-gateway:8007']
+        labels:
+          service: 'protocol-gateway'
+          phase: '2'
+    metrics_path: '/metrics'
+
+  # Rule Engine
+  - job_name: 'rule-engine'
+    static_configs:
+      - targets: ['rule-engine:8008']
+        labels:
+          service: 'rule-engine'
+          phase: '2'
+    metrics_path: '/metrics'
+
+  # Alarm Service
+  - job_name: 'alarm-service'
+    static_configs:
+      - targets: ['alarm-service:8009']
+        labels:
+          service: 'alarm-service'
+          phase: '2'
+    metrics_path: '/metrics'
+
+  # ==================== Phase 3 服务 ====================
+  
+  # Stream Service
+  - job_name: 'stream-service'
+    static_configs:
+      - targets: ['stream-service:8010']
+        labels:
+          service: 'stream-service'
+          phase: '3'
+    metrics_path: '/metrics'
+
+  # Analytics Service
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:8011']
+        labels:
+          service: 'analytics-service'
+          phase: '3'
+    metrics_path: '/metrics'
+
+# 远程写入配置（可选，用于长期存储）
+# remote_write:
+#   - url: "http://thanos:9090/api/v1/receive"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 50
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       min_backoff: 30ms
+#       max_backoff: 100ms
+

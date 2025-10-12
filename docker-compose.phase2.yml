@@ -1,0 +1,234 @@
+# Fountain IoT Platform - Phase 2 扩展服务
+# 多租户 + 多协议 + 规则引擎 + 告警
+
+services:
+  # ==================== 租户服务 ====================
+  
+  tenant-service:
+    build:
+      context: ./backend/tenant-service
+      dockerfile: Dockerfile
+    image: iot-platform/tenant-service:latest
+    container_name: iot-tenant-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8006:8006"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8006
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 协议网关服务 ====================
+  
+  protocol-gateway:
+    build:
+      context: ./backend/protocol-gateway
+      dockerfile: Dockerfile
+    image: iot-platform/protocol-gateway:latest
+    container_name: iot-protocol-gateway
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8007:8007"      # HTTP API
+      - "8080:8080"      # WebSocket
+      - "5683:5683/udp"  # CoAP
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      HTTP_PORT: 8007
+      WEBSOCKET_PORT: 8080
+      COAP_PORT: 5683
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # MQTT
+      MQTT_URL: mqtt://emqx:1883
+      MQTT_USERNAME: gateway
+      MQTT_PASSWORD: ${MQTT_GATEWAY_PASSWORD:-gateway_password}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # 性能配置
+      BATCH_SIZE: 100
+      BATCH_TIMEOUT: 100
+      MAX_CONNECTIONS: 10000
+    depends_on:
+      nats:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8007/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 规则引擎服务 ====================
+  
+  rule-engine:
+    build:
+      context: ./backend/rule-engine
+      dockerfile: Dockerfile
+    image: iot-platform/rule-engine:latest
+    container_name: iot-rule-engine
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8008:8008"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8008
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # 规则引擎配置
+      RULE_EVALUATION_INTERVAL: 1000
+      MAX_RULES_PER_TENANT: 100
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8008/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 告警服务 ====================
+  
+  alarm-service:
+    build:
+      context: ./backend/alarm-service
+      dockerfile: Dockerfile
+    image: iot-platform/alarm-service:latest
+    container_name: iot-alarm-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8009:8009"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8009
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # 通知配置
+      SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@iot-platform.com}
+      
+      # 短信配置（可选）
+      SMS_PROVIDER: ${SMS_PROVIDER:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      
+      # Webhook 配置
+      WEBHOOK_TIMEOUT: 5000
+      WEBHOOK_RETRIES: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8009/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  iot-net:
+    external: true
+

@@ -1,0 +1,319 @@
+# Fountain IoT Platform - Phase 1 核心服务
+# MVP 阶段：基础设备管理 + 数据采集 + OTA + 前端
+
+services:
+  # ==================== 认证服务 ====================
+  
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    image: iot-platform/auth-service:latest
+    container_name: iot-auth-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8001:8001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # JWT 配置
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_change_in_production}
+      JWT_EXPIRES_IN: 7200
+      JWT_REFRESH_EXPIRES_IN: 604800
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 配置服务 ====================
+  
+  config-service:
+    build:
+      context: ./backend/config-service
+      dockerfile: Dockerfile
+    image: iot-platform/config-service:latest
+    container_name: iot-config-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8002:8002"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8002
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 设备服务 ====================
+  
+  device-service:
+    build:
+      context: ./backend/device-service
+      dockerfile: Dockerfile
+    image: iot-platform/device-service:latest
+    container_name: iot-device-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8003:8003"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8003
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # EMQX
+      EMQX_API_URL: http://emqx:18083
+      EMQX_API_KEY: ${EMQX_API_KEY:-}
+      EMQX_API_SECRET: ${EMQX_API_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 遥测服务 ====================
+  
+  telemetry-service:
+    build:
+      context: ./backend/telemetry-service
+      dockerfile: Dockerfile
+    image: iot-platform/telemetry-service:latest
+    container_name: iot-telemetry-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8004:8004"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8004
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # TimescaleDB
+      TIMESCALEDB_HOST: timescaledb
+      TIMESCALEDB_PORT: 5432
+      TIMESCALEDB_DB: iot_timeseries
+      TIMESCALEDB_USER: iot_user
+      TIMESCALEDB_PASSWORD: ${TIMESCALEDB_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # 批量写入配置
+      BATCH_SIZE: 1000
+      BATCH_TIMEOUT: 1000
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== OTA 服务 ====================
+  
+  ota-service:
+    build:
+      context: ./backend/ota-service
+      dockerfile: Dockerfile
+    image: iot-platform/ota-service:latest
+    container_name: iot-ota-service
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "8005:8005"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8005
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # 数据库
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iot_platform
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password_2025}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password_2025}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      
+      # MinIO
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio_password_2025}
+      MINIO_USE_SSL: false
+      MINIO_BUCKET: firmware
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 前端服务 ====================
+  
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=${NODE_ENV:-development}
+    image: iot-platform/frontend:latest
+    container_name: iot-frontend
+    restart: unless-stopped
+    networks:
+      - iot-net
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      
+      # API 端点
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8001}
+      NEXT_PUBLIC_WS_URL: ${WS_URL:-ws://localhost:8001}
+      NEXT_PUBLIC_MQTT_WS_URL: ${MQTT_WS_URL:-ws://localhost:8083}
+      
+      # 服务发现
+      AUTH_SERVICE_URL: http://auth-service:8001
+      DEVICE_SERVICE_URL: http://device-service:8003
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8004
+      OTA_SERVICE_URL: http://ota-service:8005
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      device-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  iot-net:
+    external: true
+

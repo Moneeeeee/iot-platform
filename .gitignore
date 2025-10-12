@@ -1,0 +1,119 @@
+# ==================== 通用 ====================
+.DS_Store
+Thumbs.db
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# ==================== 环境变量 ====================
+.env
+.env.local
+.env.*.local
+
+# ==================== Node.js ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ==================== TypeScript ====================
+*.tsbuildinfo
+dist/
+build/
+out/
+
+# ==================== IDE ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ==================== 测试 ====================
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# ==================== 构建产物 ====================
+*.tgz
+*.tar.gz
+
+# ==================== Docker ====================
+# 保留 docker-compose 文件，忽略其他
+.dockerignore
+
+# ==================== 数据目录 ====================
+data/postgres/*
+data/timescaledb/*
+data/redis/*
+data/nats/*
+data/emqx/*
+data/minio/*
+!data/.gitkeep
+
+# ==================== 日志目录 ====================
+logs/*
+!logs/.gitkeep
+
+# ==================== 备份 ====================
+backups/*
+!backups/.gitkeep
+
+# ==================== 临时文件 ====================
+tmp/
+temp/
+*.tmp
+
+# ==================== 证书和密钥 ====================
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+certs/
+
+# ==================== OS ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ==================== 其他 ====================
+.cache/
+.turbo/
+.next/
+.nuxt/
+.vercel
+.netlify
+
+# Python (如果有 Python 服务)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+ENV/
+
+# 保留模板文件
+!.env.example
+!configs/**
+
